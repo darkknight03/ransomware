@@ -1,0 +1,2 @@
+/Users/wolf/dev/rust_projects/ransom_testing/.DS_Store
+/Users/wolf/dev/rust_projects/ransom_testing/test2/.DS_Store

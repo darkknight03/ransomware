@@ -1,0 +1,92 @@
+[2025-05-22 21:29:24] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-22 21:29:24] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-22 21:29:24] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-22 21:29:24] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files: 1
+[2025-05-22 21:29:34] ["MacBook-ProX.local"] [INFO] User chose not to continue. Exiting...
+[2025-05-23 19:05:19] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:20:02] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:20:02] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:20:02] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:20:02] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 18:24:07] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:24:07] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:24:07] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:24:07] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 18:38:19] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:38:19] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:38:19] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:38:19] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 18:38:28] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:38:28] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:38:28] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:38:28] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 18:44:46] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:44:46] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:44:46] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:44:46] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 18:44:51] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 18:44:51] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 18:44:51] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 18:44:51] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 19:07:31] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 19:07:31] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 19:07:31] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 19:07:31] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-25 19:07:36] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-25 19:07:36] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-25 19:07:36] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-25 19:07:36] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-26 08:22:00] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-26 08:22:00] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-26 08:22:00] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-26 08:22:00] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-26 08:23:56] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-26 08:23:56] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-26 08:23:56] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-26 08:23:56] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 19:57:22] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 19:57:22] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 19:57:22] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 19:57:22] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 20:18:15] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 20:18:15] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 20:18:15] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 20:18:15] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 20:19:08] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 20:19:08] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 20:19:08] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 20:19:08] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 20:19:20] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 20:19:20] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 20:19:20] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 20:19:20] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 20:20:20] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 20:20:20] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 20:20:20] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 20:20:20] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-27 20:21:47] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-27 20:21:47] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-27 20:21:47] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-27 20:21:47] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-28 21:06:58] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-28 21:06:58] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-28 21:06:58] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-28 21:06:58] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-28 21:07:34] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 192.168.1.24
+[2025-05-28 21:07:34] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-28 21:07:34] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-28 21:07:34] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-31 12:22:35] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 10.0.0.250
+[2025-05-31 12:22:35] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-31 12:22:35] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-31 12:22:35] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-31 16:09:19] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 10.0.0.250
+[2025-05-31 16:09:19] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-31 16:09:19] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-31 16:09:19] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-31 16:43:12] ["MacBook-ProX.local"] [INFO] Ransomware Program starting on local IP: 10.0.0.250
+[2025-05-31 16:43:12] ["MacBook-ProX.local"] [INFO] Discovering files...
+[2025-05-31 16:43:12] ["MacBook-ProX.local"] [INFO] Searching in path: /Users/wolf/dev/rust_projects/ransom_testing
+[2025-05-31 16:43:12] ["MacBook-ProX.local"] [INFO] Targeting complete. Target files:: 1
+[2025-05-31 16:43:17] ["MacBook-ProX.local"] [INFO] Error during encryption: No such file or directory (os error 2)
+[2025-05-31 16:43:17] ["MacBook-ProX.local"] [INFO] Ransom note generated
