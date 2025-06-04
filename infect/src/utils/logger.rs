@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use chrono::Local; 
 use gethostname::gethostname;
 
+
 pub struct Logger {
     log_file: Mutex<Option<std::fs::File>>,
 }
@@ -27,6 +28,10 @@ impl Logger {
 
     pub fn log_to_stdout(&self, msg_type: &str, fmt: std::fmt::Arguments) {
         println!("[{}] {}", msg_type, fmt);
+    }
+
+    pub fn log_to_stderr(&self, msg_type: &str, fmt: std::fmt::Arguments) {
+        eprintln!("[{}] {}", msg_type, fmt);
     }
 
 
@@ -56,8 +61,8 @@ impl Logger {
     }
 
     // Logs error message to both stdout and file
-    pub fn log_error(&self, message: &str) {
-        self.log_to_stdout("ERROR", format_args!("{}", message));
+    pub fn error(&self, message: &str) {
+        self.log_to_stderr("ERROR", format_args!("{}", message));
         if let Err(e) = self.log_to_file("ERROR", message) {
             eprint!("Failed to log to file: {}", e);
         }

@@ -41,11 +41,11 @@ pub fn discover_files(logger: &Logger, target_path: &str) -> Result<Vec<String>,
                     other_files.push(p.display().to_string()); // Push files with no extensions
                 }
             }
-            Err(e) => eprintln!("Error reading entry: {}", e), // Handle WalkDir errors
+            Err(e) => logger.error(&format!("Error reading entry: {}", e)), // Handle WalkDir errors
         }
     }
     
-    logger.log(&format!("Targeting complete. Target files:: {}", target_files.len()));
+    logger.log(&format!("Targeting complete. Target files: {}", target_files.len()));
 
     // Write contents of files vector to new file -> REMOVE AFTER TESTING
     let _ = write_files_out(&target_files, "files/target_files.txt");
@@ -135,7 +135,7 @@ pub fn discover_files_decrypt(logger: &Logger, target_path: &str, extension: &st
                 }
                 
             }
-            Err(e) => eprintln!("Error reading entry: {}", e), // Handle WalkDir errors
+            Err(e) => logger.error(&format!("Error reading entry: {}", e)), // Handle WalkDir errors
         }
     }
 

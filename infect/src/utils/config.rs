@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub log_path: String,
     pub target_path: String,
     pub note_path: String,
+    pub key_path: String,
     pub extension: String,
     pub retries: u64,
     pub timeout_seconds: u64,

