@@ -9,7 +9,7 @@ pub fn _parse_command(raw: &str) -> Option<AgentCommand> {
     Some(AgentCommand::RunShell(raw.to_string())) // replace with real parsing
 }
 
-pub async fn _process_command(cmd: AgentCommand) -> Option<String>{
+pub async fn _process_command(_cmd: AgentCommand) -> Option<String>{
 
     todo!()
 }
