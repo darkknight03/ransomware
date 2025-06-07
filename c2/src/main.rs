@@ -101,7 +101,7 @@ async fn tcp_server(args: Args) {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
             Logging::DEBUG.print_message("Sweeping for dead agents");
-            c2.sweep_dead_agents(120).await; 
+            c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
 

@@ -31,7 +31,7 @@ impl TaskManager {
          .push(task);
     }
 
-    pub async fn get_next_task(&self, agent_id: u64) -> Option<Task> {
+    pub async fn _get_next_task(&self, agent_id: u64) -> Option<Task> {
         let mut queues = self.queues.lock().await;
 
         if let Some(tasks) = queues.get_mut(&agent_id) {
@@ -43,14 +43,6 @@ impl TaskManager {
             }
         }
         None
-
-        // let tasks = queue[&agent_id];
-        // for task in tasks {
-        //     if !task.dispatched {
-        //         return Some(task)
-        //     }
-        // }
-        // None
     }
 
     /// Gets all incomplete tasks from queue and returns as vector

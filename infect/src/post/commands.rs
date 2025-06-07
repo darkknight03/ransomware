@@ -23,5 +23,6 @@ pub enum AgentCommand {
 
     // Behavior
     SelfDestruct,
-    InvalidTask
+    InvalidTask,
+    NOOP
 }

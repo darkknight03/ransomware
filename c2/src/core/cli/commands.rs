@@ -9,8 +9,6 @@ use crate::tasking::agent_command::AgentCommand;
 use crate::tasking::tasking::Task;
 
 
-
-
 pub async fn handle_list_command(c2: &Arc<Mutex<C2>>) {
     let c2 = c2.lock().await;
     c2.list_agents_pretty().await;

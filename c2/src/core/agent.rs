@@ -1,4 +1,6 @@
-use chrono::{DateTime, Local, Utc};
+use std::fmt;
+
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::logging::Logging;
@@ -8,8 +10,8 @@ pub struct Agent {
     pub id: u64,
     pub status: AgentState,
     pub ip: String,
-    pub last_seen: DateTime<Local>,
-    pub time_compromised: DateTime<Local>,
+    pub last_seen: DateTime<Utc>,
+    pub time_compromised: DateTime<Utc>,
     pub hostname: String,
     pub os: String,
     pub session_id: String,
@@ -21,6 +23,12 @@ pub enum AgentState {
     Alive,
     Dead,
     Error
+}
+
+impl fmt::Display for AgentState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self) // or customize: write!(f, "Alive") etc.
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,24 +52,24 @@ impl Agent {
     }
 
     pub fn update_time(&mut self) {
-        self.last_seen = Local::now();
+        self.last_seen = Utc::now();
     }
 
     pub fn update_status(&mut self, status: AgentState) {
         self.status = status
     }
 
-    pub fn update_results(&mut self, res: Vec<AgentResult>) {
+    pub fn _update_results(&mut self, res: Vec<AgentResult>) {
         self.results = res;
     }
 
-    pub fn unread_results(&self) -> Vec<&AgentResult> {
+    pub fn _unread_results(&self) -> Vec<&AgentResult> {
         self.results.iter().filter(|r| match r {
             AgentResult::CommandOutput { read, .. } => !read,
         }).collect()
     }
 
-    pub fn get_all_results(&self) -> Vec<&AgentResult> {
+    pub fn _get_all_results(&self) -> Vec<&AgentResult> {
         self.results.iter().collect()
     }
 
@@ -82,8 +90,8 @@ mod tests {
             id: 1,
             status: AgentState::Alive,
             ip: "192.168.1.1".to_string(),
-            last_seen: Local::now(),
-            time_compromised: Local::now(),
+            last_seen: Utc::now(),
+            time_compromised: Utc::now(),
             hostname: "PC5".to_string(),
             os: "Windows 11".to_string(),
             session_id: "abcd".to_string(),

