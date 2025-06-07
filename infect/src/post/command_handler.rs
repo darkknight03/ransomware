@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use crate::post::commands::{AgentCommand, ResultQueue};
 use tokio::process::Command;
 use tokio::sync::mpsc::Receiver;
@@ -21,6 +23,14 @@ pub async fn run_command_worker(mut rx: Receiver<AgentCommand>, result_queue: Re
                     Err(e) => format!("Error: {}", e),
                 }
             }
+            AgentCommand::SelfDestruct => {
+                // Perform any necessary cleanup here if needed
+                // For a clean shutdown, ensure all important data is flushed/saved.
+                // Drop or close any open resources (files, sockets, etc.) if needed.
+                // If you want to forcefully terminate the entire process and all threads:
+                exit(0); // This will immediately terminate the process.
+            }
+            AgentCommand::InvalidTask => "Invalid task".to_string(),
             _ => "Not implemented".to_string()
         };
 

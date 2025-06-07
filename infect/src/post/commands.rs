@@ -22,5 +22,6 @@ pub enum AgentCommand {
     SearchFiles { pattern: String },
 
     // Behavior
-    SelfDestruct
+    SelfDestruct,
+    InvalidTask
 }

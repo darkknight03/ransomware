@@ -20,6 +20,10 @@ pub enum AgentMessage {
     Disconnect {
         agent_id: u64,
         session_id: String,
+    },
+    Reconnect {
+        agent_id: u64,
+        session_id: String,
     }
 }
 
