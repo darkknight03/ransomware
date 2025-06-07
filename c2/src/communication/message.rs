@@ -11,6 +11,7 @@ pub enum AgentMessage {
         ip: String,
         os: String,
         time_compromised: String,
+        key: Vec<u8>
     },
     Heartbeat {
         agent_id: u64,
@@ -18,6 +19,10 @@ pub enum AgentMessage {
         result: Option<Vec<String>>
     },
     Disconnect {
+        agent_id: u64,
+        session_id: String,
+    },
+    Reconnect {
         agent_id: u64,
         session_id: String,
     }

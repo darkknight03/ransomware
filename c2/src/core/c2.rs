@@ -166,6 +166,17 @@ impl C2 {
             false
         }
     }
+
+    /// Update agent session
+    pub async fn update_agent_session(&self, id: u64, session_id: &str) -> bool {
+        let mut agents = self.agents.lock().await;
+        if let Some(agent) = agents.get_mut(&id) {
+            agent.session_id = session_id.to_string();
+            true
+        } else {
+            false
+        }
+    }
     
     /// Check if valid session exists -> may need to add more checks to ensure secure
     pub async fn check_session(&self, id: &str) -> bool {
@@ -250,35 +261,7 @@ impl C2 {
 
     }
 
-    // pub async fn _display_results(&self, id: u64) {
-    //     let mut agents = self.agents.lock().await;
-    //     if let Some(agent) = agents.get_mut(&id) {
-    //         for res in &mut agent.results {
-    //             match res {
-    //                 AgentResult::CommandOutput { output, read } => {
-    //                     if !*read {
-    //                         Logging::RESULT.print_message(&format!("Result: {}", &output));
-    //                         *read = true;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    // pub async fn _display_all_results(&self, id: u64) {
-    //     let agents = self.agents.lock().await;
-    //     if let Some(agent) = agents.get(&id) {
-    //         for res in &agent.results {
-    //             match res {
-    //                 AgentResult::CommandOutput { output, read: _ } => {
-    //                     Logging::RESULT.print_message(&format!("Result: {}\n", &output));
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
+    /// Display results to terminal for selected agent with option to show all or just unread
     pub async fn display_results(&self, id: u64, show_all: bool) {
         let mut agents = self.agents.lock().await;
     
@@ -311,6 +294,7 @@ impl C2 {
         }
     }
 
+    /// Clear results from a selected agent
     pub async fn clear_results(&self, id: u64) {
         let mut agents = self.agents.lock().await;
         if let Some(agent) = agents.get_mut(&id) {

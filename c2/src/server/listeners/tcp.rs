@@ -36,7 +36,7 @@ impl Listener for TCPCommListener {
             let c2_clone = Arc::clone(&c2);
             // Spawn a new task to handle the connection
             tokio::spawn(async move {
-                session::handle_session2(socket, addr, c2_clone).await;
+                session::handle_session(socket, addr, c2_clone).await;
             });
             // tokio::spawn(handle_connection(socket, addr));
         }

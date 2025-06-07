@@ -7,7 +7,6 @@ use crate::core::cli::cli::C2Cli;
 use crate::core::c2::C2;
 use crate::tasking::agent_command::AgentCommand;
 use crate::tasking::tasking::Task;
-use crate::Logging;
 
 
 
