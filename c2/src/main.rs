@@ -8,10 +8,12 @@ use std::sync::Arc;
 use server::listeners::listener_trait::Listener;
 use tokio::sync::Mutex;
 use clap::Parser;
+use tokio::task::LocalSet;
 
 use crate::utils::logging::Logging;
 use crate::core::c2::C2; 
 use crate::server::listeners::tcp::TCPCommListener;
+use crate::server::listeners::http;
 use crate::core::cli::cli::C2Cli;
 
 /// Command and Control Server Configuration
@@ -59,8 +61,16 @@ async fn main() {
 
     match args.protocol.as_str() {
         "tcp" => {tcp_server(args).await}
-        "http" => {http_server().await}
-        "https" => {https_server().await}
+        "http" | "https" => {
+            let local = LocalSet::new();
+            local.run_until(async move {
+                if args.protocol == "http" {
+                    http_server(args).await;
+                } else {
+                    https_server(args).await;
+                }
+            }).await;
+        }
         "dns" => {dns_server().await}
         "multi" => {multi_server().await}
         _ => {
@@ -110,12 +120,73 @@ async fn tcp_server(args: Args) {
     cli.run(c2).await;
 }
 
-async fn http_server() {
-    todo!()
+async fn http_server(args: Args) {
+    let c2 = Arc::new(
+        Mutex::new(
+            C2::create(args.log_file, None).unwrap()));
+
+    let address = format!("{}:{}", args.host, args.port);
+    
+    let c2_http = Arc::clone(&c2);
+    std::thread::spawn(move || {
+        // Start a new Actix system
+        actix_web::rt::System::new()
+            .block_on(async move {
+                if let Err(e) = http::run_server(&address, c2_http, false).await {
+                    eprintln!("HTTP server error: {}", e);
+                }
+            });
+    });
+
+
+    let c2_sweep = Arc::clone(&c2);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
+            let mut c2 = c2_sweep.lock().await;
+            Logging::DEBUG.print_message("Sweeping for dead agents");
+            c2.sweep_dead_agents(120).await;  // FIX: timeout duration
+        }
+    });
+
+    let mut cli = C2Cli { current_agent: 0 };
+
+    cli.run(c2).await;
+
 }
 
-async fn https_server() {
-    todo!()
+async fn https_server(args: Args) {
+    let c2 = Arc::new(
+        Mutex::new(
+            C2::create(args.log_file, None).unwrap()));
+
+    let address = format!("{}:{}", args.host, args.port);
+    
+    let c2_https = Arc::clone(&c2);
+    std::thread::spawn(move || {
+        // Start a new Actix system
+        actix_web::rt::System::new()
+            .block_on(async move {
+                if let Err(e) = http::run_server(&address, c2_https, true).await {
+                    eprintln!("HTTP server error: {}", e);
+                }
+            });
+    });
+
+    let c2_sweep = Arc::clone(&c2);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
+            let mut c2 = c2_sweep.lock().await;
+            Logging::DEBUG.print_message("Sweeping for dead agents");
+            c2.sweep_dead_agents(120).await;  // FIX: timeout duration
+        }
+    });
+
+    let mut cli = C2Cli { current_agent: 0 };
+
+    cli.run(c2).await;
+
 }
 
 async fn dns_server() {

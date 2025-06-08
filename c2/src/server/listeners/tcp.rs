@@ -38,7 +38,6 @@ impl Listener for TCPCommListener {
             tokio::spawn(async move {
                 session::handle_session(socket, addr, c2_clone).await;
             });
-            // tokio::spawn(handle_connection(socket, addr));
         }
         
     }
