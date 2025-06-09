@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use crate::server::listeners::listener_trait::Listener;
 use crate::utils::logging::Logging;
 use crate::core::c2::C2; 
-use crate::communication::session;
+use crate::communication::tcp_session;
 
 
 
@@ -36,7 +36,7 @@ impl Listener for TCPCommListener {
             let c2_clone = Arc::clone(&c2);
             // Spawn a new task to handle the connection
             tokio::spawn(async move {
-                session::handle_session(socket, addr, c2_clone).await;
+                tcp_session::handle_session(socket, addr, c2_clone).await;
             });
         }
         
@@ -83,19 +83,3 @@ pub async fn _handle_connection(mut socket: TcpStream, addr: SocketAddr) {
 }
 
 
-
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn tests_tcp() {
-        dbg!("Hello");
-        let _listener = TCPCommListener {
-            bind_addr: "127.0.0.1:23423".parse().unwrap()
-        };
-
-        // listener.start().await;
-        
-
-    }
-}

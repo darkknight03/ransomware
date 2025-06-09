@@ -7,6 +7,7 @@ use crate::core::cli::cli::C2Cli;
 use crate::core::c2::C2;
 use crate::tasking::agent_command::AgentCommand;
 use crate::tasking::tasking::Task;
+use crate::utils::logging::Logging;
 
 
 pub async fn handle_list_command(c2: &Arc<Mutex<C2>>) {
@@ -17,7 +18,7 @@ pub async fn handle_list_command(c2: &Arc<Mutex<C2>>) {
 }
 
 pub async fn handle_help_command() {
-    println!("Available: list, exit, show, remove, use, home, send");
+    Logging::RESULT.print_message("Available: list, exit, show, remove, use, home, send");
 }
 
 pub async fn handle_show_command(c2: &Arc<Mutex<C2>>, mut parts: impl Iterator<Item = String>) {
@@ -28,12 +29,13 @@ pub async fn handle_show_command(c2: &Arc<Mutex<C2>>, mut parts: impl Iterator<I
                 if c2.agent_exists(id).await {
                     c2.list_agent(id).await;
                 } else {
+                    Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id));
                     println!("Invalid agent ID: {}", id);
                 }
             }
-            Err(_) => println!("Invalid agent ID: {}", id_str),
+            Err(_) => Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id_str)),
         },
-        None => println!("Usage: show <agent_id>"),
+        None => Logging::RESULT.print_message("Usage: show <agent_id>"),
     }
 }
 
@@ -45,12 +47,12 @@ pub async fn handle_remove_command(cli: &C2Cli, c2: &Arc<Mutex<C2>>, mut parts: 
                     let mut c2 = c2.lock().await;
                     if c2.agent_exists(id).await {
                         c2.remove_agent(id).await;
-                    } else {println!("Invalid agent ID: {}", id);}
-                } else {println!("You cannot remove the currently selected agent.");}
+                    } else {Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id));}
+                } else {Logging::RESULT.print_message("You cannot remove the currently selected agent.");}
             }
-            Err(_) => println!("Invalid agent ID: {}", id_str)
+            Err(_) => Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id_str))
         }
-        None => println!("Usage: remove <agent_id>")
+        None => Logging::RESULT.print_message("Usage: remove <agent_id>")
     }
 }
 
@@ -65,24 +67,24 @@ pub async fn handle_use_command(cli: &mut C2Cli, c2: &Arc<Mutex<C2>>, mut parts:
                 let c2 = c2.lock().await;
                 if c2.agent_exists(id).await {
                     cli.current_agent = id;
-                } else {println!("Invalid agent ID: {}", id);}
+                } else {Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id));}
             }
-            Err(_) => println!("Invalid agent ID: {}", id_str),
+            Err(_) => Logging::RESULT.print_message(&format!("Invalid agent ID: {}", id_str)),
         },
-        None => println!("Usage: use <agent_id>"),
+        None => Logging::RESULT.print_message("Usage: use <agent_id>"),
     }
 }
 
 pub async fn handle_send_command(cli: &C2Cli, c2: &Arc<Mutex<C2>>, mut parts: impl Iterator<Item = String>) {
     if cli.current_agent == 0 {
-        println!("Select an Agent to use");
+        Logging::RESULT.print_message("Select an Agent to use");
         return;
     }
     match parts.next().as_deref() {
         Some("command") => {
             let args: Vec<String> = parts.collect();
             if args.is_empty() {
-                println!("Usage: send command <shell command>");
+                Logging::RESULT.print_message("Usage: send command <shell command>");
                 return;
             }
             let task = args.join(" ");
@@ -106,10 +108,10 @@ pub async fn handle_send_command(cli: &C2Cli, c2: &Arc<Mutex<C2>>, mut parts: im
         }
 
         Some(other) => {
-            println!("Unknown send subcommand: '{}'", other);
+            Logging::RESULT.print_message(&format!("Unknown send subcommand: '{}'", other));
         }
         None => {
-            println!("Usage: send command <command>");
+            Logging::RESULT.print_message("Usage: send command <command>");
         }
     }
 }
@@ -120,7 +122,7 @@ pub async fn handle_result_command(cli: &C2Cli, c2: &Arc<Mutex<C2>>, mut parts: 
     // result clear -> clears results in Vec
     // By default, only shows unread
     if cli.current_agent == 0 {
-        println!("Select an Agent to use");
+        Logging::RESULT.print_message("Select an Agent to use");
         return;
     }
     match parts.next() {
@@ -135,7 +137,7 @@ pub async fn handle_result_command(cli: &C2Cli, c2: &Arc<Mutex<C2>>, mut parts: 
                     c2.clear_results(cli.current_agent).await;
                 }
                 _ => {
-                    println!("Invalid option: Choose between 'all', 'clear', or leave blank")
+                    Logging::RESULT.print_message("Invalid option: Choose between 'all', 'clear', or leave blank")
                 }
             }
         }

