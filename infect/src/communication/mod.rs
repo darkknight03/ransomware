@@ -1,3 +1,5 @@
 pub mod message;
 pub mod codec;
-pub mod beacon;
+pub mod beacon_tcp;
+pub mod beacon_http;
+pub mod comm;

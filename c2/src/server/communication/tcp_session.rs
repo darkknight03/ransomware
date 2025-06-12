@@ -6,8 +6,8 @@ use tokio::sync::Mutex;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-use crate::communication::codec::JsonCodec;
-use crate::communication::message::{AgentMessage, ServerMessage}; 
+use crate::server::communication::codec::JsonCodec;
+use crate::server::communication::message::{AgentMessage, ServerMessage}; 
 use crate::core::c2::C2; 
 use crate::utils::logging::Logging;
 

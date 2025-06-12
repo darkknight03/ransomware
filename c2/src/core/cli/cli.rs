@@ -1,7 +1,12 @@
-use std::io::{self, Write};
+use std::io::{self, Write, stdout};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use shell_words;
+
+use crossterm::{
+    style::{Color, PrintStyledContent, Stylize},
+    ExecutableCommand,
+};
 
 use crate::core::c2::C2;
 use crate::core::cli::commands;
@@ -11,9 +16,10 @@ pub struct C2Cli {
 }
 
 impl C2Cli {
-    pub async fn run(&mut self, c2: Arc<Mutex<C2>>) {
+    pub async fn run(&mut self, c2: Arc<Mutex<C2>>, host: &str, port: u32, protocol: &str) {
 
-        println!("=== Welcome to the C2 Command Interface ===\n\n");
+        //println!("=== Welcome to the C2 Command Interface ===\n\n");
+        print_header(host, port, protocol).await;
 
         loop {
             if self.current_agent != 0 {
@@ -56,4 +62,51 @@ impl C2Cli {
             }
         }
     }
+}
+
+pub async fn print_header(host: &str, port: u32, protocol: &str) {
+    let mut stdout = stdout();
+
+    let reaper_art = r#"
+        ...
+      ;::::;
+    ;::::; :;
+  ;:::::'   :;        ______   ______   ______
+ ;:::::;     ;      /_____/\ /_____/\ /_____/\ 
+,:::::'       ;     \::::_\/_\::::_\/_\:::_ \ \
+::::::;       ;      \:\/___/\\:\/___/\\:(_) ) )_
+;::::::;     ;        \_::._\:\\_::._\:\\: __ `\ \
+:::::::::.. .           /____\:\\_____\/ \ \ `\ \ \
+"#;
+
+    let cyber_font_title = "C2 COMMAND INTERFACE";
+
+    // Print the grim reaper art in red
+    for line in reaper_art.lines() {
+        stdout
+            .execute(PrintStyledContent(line.red())) // Red reaper
+            .unwrap();
+        println!();
+    }
+
+    // Print the cyber font title in bold purple
+    println!("{}", cyber_font_title.with(Color::Magenta).bold());
+    println!("{}", "=====================================================".with(Color::DarkMagenta));
+
+    // Listener info in styled format
+    println!(
+        "{} {}",
+        "Listener:".with(Color::Red).bold(),
+        format!("{}:{}", host, port).with(Color::White)
+    );
+
+    println!(
+        "{} {}",
+        "Protocol:".with(Color::Red).bold(),
+        protocol.to_uppercase().with(Color::White)
+    );
+
+    // Footer hint
+    println!("\n{}", "Type 'help' to get started.".with(Color::DarkGrey).italic());
+    println!();
 }

