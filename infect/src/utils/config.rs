@@ -11,6 +11,7 @@ pub struct AppConfig {
     pub extension: String,
     pub retries: u64,
     pub timeout_seconds: u64,
+    pub service: String
 }
 
 impl AppConfig {

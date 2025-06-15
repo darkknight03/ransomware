@@ -7,3 +7,4 @@ key_path = "C:\\Users\\Public\\ransom_target"
 extension = "pwned"
 retries = 3
 timeout_seconds = 10
+service = "TCP"

