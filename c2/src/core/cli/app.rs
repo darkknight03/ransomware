@@ -3,7 +3,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
-    style::{PrintStyledContent, Stylize},
     ExecutableCommand,
     execute,
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -18,6 +17,8 @@ use ratatui::style::{Color, Style};
 use crate::utils::logging::Logging;
 use crate::core::cli::ui::render_ui;
 use crate::core::c2::C2;
+use crate::core::cli::commands;
+
 
 
 
@@ -80,9 +81,7 @@ impl App {
 
         let header = build_colored_header_output(host, port, protocol);
         self.output.extend(header);
-        // for line in header_lines {
-        //     self.add_output(line);
-        // }
+
 
         loop {
             // Draw the TUI
@@ -114,9 +113,18 @@ impl App {
                             let cmd = parts.next();
 
                             match cmd.as_deref() {
+                                Some("list") => commands::handle_list_command(self, &c2).await,
+                                Some("exit") | Some("quit") => { break; }
+                                Some("help") => commands::handle_help_command(self).await,
+                                // Some("show") => commands::handle_show_command(&c2, parts).await,
+                                Some("remove") => commands::handle_remove_command(self, &c2, parts).await,
+                                Some("home") => commands::handle_home_command(self).await,
+                                Some("use") => commands::handle_use_command(self, &c2, parts).await,
+                                Some("send") => commands::handle_send_command(self, &c2, parts).await,
+                                Some("result") => commands::handle_result_command(self, &c2, parts).await,
                                 Some(other) => {
                                     self.add_output(format!("Unknown command: '{}'", other));
-                                    self.add_log(Logging::ERROR, format!("Unknown command: '{}'", other));
+                                    //self.add_log(Logging::ERROR, format!("Unknown command: '{}'", other));
                                 }
                                 None => {}
                             }
@@ -169,40 +177,6 @@ impl App {
 }
 
 
-pub fn build_header_output(host: &str, port: u32, protocol: &str) -> Vec<String> {
-    let reaper_art = r#"
-        ...
-      ;::::;
-    ;::::; :;
-  ;:::::'   :;        ______   ______   ______
- ;:::::;     ;      /_____/\ /_____/\ /_____/\ 
-,:::::'       ;     \::::_\/_\::::_\/_\:::_ \ \
-::::::;       ;      \:\/___/\\:\/___/\\:(_) ) )_
-;::::::;     ;        \_::._\:\\_::._\:\\: __ `\ \
-:::::::::.. .           /____\:\\_____\/ \ \ `\ \ \
-"#;
-
-    let mut lines = Vec::new();
-
-    // Reaper art
-    for line in reaper_art.lines() {
-        lines.push(line.to_string());
-    }
-
-    // Cyber title
-    lines.push("C2 COMMAND INTERFACE".to_string());
-    lines.push("=====================================================".to_string());
-
-    // Listener info
-    lines.push(format!("Listener: {}:{}", host, port));
-    lines.push(format!("Protocol: {}", protocol.to_uppercase()));
-
-    // Help prompt
-    lines.push(String::new());
-    lines.push("Type 'help' to get started.".to_string());
-
-    lines
-}
 
 
 pub fn build_colored_header_output(host: &str, port: u32, protocol: &str) -> Vec<Line<'static>> {
