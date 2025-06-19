@@ -2,7 +2,7 @@ use rand::Rng;
 use tokio::{sync::mpsc, task::JoinHandle};
 use std::sync::Arc;
 
-use crate::communication::comm::channel::CommChannel;
+use crate::communication::channels::channel::CommChannel;
 use crate::post::commands::{AgentCommand, ResultQueue};
 use crate::utils::logger;
 

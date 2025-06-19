@@ -11,7 +11,7 @@ use std::sync::Arc;
 use crate::utils::{logger, config::AppConfig};
 use crate::core::{targeting, ransom};
 use crate::crypto::decryption;
-use crate::communication::comm::{channel, tcp, http};
+use crate::communication::channels::{channel, tcp, http};
 
 
 

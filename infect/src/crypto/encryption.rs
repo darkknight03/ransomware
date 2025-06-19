@@ -74,7 +74,6 @@ fn get_files(targets: &Vec<String>) -> Result<Vec<PathBuf>, Box<dyn std::error::
     for file in targets {
         let file_path = Path::new(file);
         if file_path.exists() {
-            // println!("File {} exists", file_path.display().to_string());
             files.push(file_path.to_path_buf());
         } else {
             eprintln!("File {} does not exist", file);

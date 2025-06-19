@@ -31,7 +31,14 @@ pub async fn run_command_worker(mut rx: Receiver<AgentCommand>, result_queue: Re
                 exit(0); // This will immediately terminate the process.
             }
             AgentCommand::InvalidTask => "Invalid task".to_string(),
-            _ => "Not implemented".to_string()
+            AgentCommand::NOOP => {
+                // Do not push anything to result_queue
+                continue;
+            }
+            // Add new handlers here as you implement more commands
+            other => {
+                format!("Command not implemented: {:?}", other)
+            }
         };
 
         let mut lock = result_queue.lock().await;

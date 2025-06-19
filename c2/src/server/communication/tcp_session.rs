@@ -58,9 +58,9 @@ pub async fn handle_session(stream: TcpStream, addr: SocketAddr, c2: Arc<Mutex<C
                 match result {
                     Some(res) => {
                         c2.update_result(agent_id, res).await;
-                        Logging::SUCCESS.print_message(&format!("Received data from Agent {}", agent_id));
+                        Logging::SUCCESS.print_message(&format!("[+] Received data from Agent {}", agent_id));
                     }
-                    None => {dbg!("No results returned from heartbeat");}
+                    None => {}
                 }
 
                 // Check TaskManager for any tasks for agent_id

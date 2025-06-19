@@ -6,7 +6,7 @@ use crossterm::{
 };
 use std::io::stdout;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Logging {
     INFO,
     DEBUG,

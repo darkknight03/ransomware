@@ -14,6 +14,7 @@ use crate::core::c2::C2;
 use crate::server::listeners::tcp::TCPCommListener;
 use crate::server::listeners::http;
 use crate::core::cli::cli::C2Cli;
+use crate::core::cli::app::App;
 
 /// Command and Control Server Configuration
 #[derive(Parser, Debug)]
@@ -153,9 +154,14 @@ async fn http_server(args: Args) {
         }
     });
 
-    let mut cli = C2Cli { current_agent: 0 };
+    //let mut cli = C2Cli { current_agent: 0 };
+    let mut app = App::new();
 
-    cli.run(c2, &args.host, args.port, &args.protocol).await;
+    app.c2_cli(c2, &args.host, args.port, &args.protocol).await;
+
+    //cli.run(c2, &args.host, args.port, &args.protocol).await;
+    //cli.start_c2_ui(c2, &args.host, args.port, &args.protocol).await;
+
 
 }
 

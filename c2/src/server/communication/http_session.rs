@@ -96,8 +96,8 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                         let c2 = c2.lock().await;
                         c2.update_result(*agent_id, res.clone()).await;
                     }
-                    Logging::SUCCESS.print_message(&format!("Received data from Agent {}", agent_id));
-                } else { dbg!("No results returned from heartbeat"); }
+                    Logging::SUCCESS.print_message(&format!("[+] Received data from Agent {}", agent_id));
+                }
 
                 let tasks_opt = {
                     let c2 = c2.lock().await;
