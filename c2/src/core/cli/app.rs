@@ -1,6 +1,7 @@
 use std::io::{self, Write, stdout};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Receiver;
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     ExecutableCommand,
@@ -13,21 +14,26 @@ use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Style};
 
 
-
-use crate::utils::logging::Logging;
-use crate::core::cli::ui::render_ui;
+use crate::utils::logging::{Logging, LogEntry};
+use crate::core::cli::{ui, keys};
 use crate::core::c2::C2;
 use crate::core::cli::commands;
 
+#[derive(Debug)]
+pub enum FocusPane {
+    Input,
+    Output,
+    Logs,
+}
 
 
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug)]
 pub struct App {
     pub input: String,
     //pub output: Vec<String>,
     pub output: Vec<Line<'static>>,
-    pub logs: Vec<(Logging, String)>, // Tuple: (log level, message)
+    // pub logs: Vec<(Logging, String)>, // Tuple: (log level, message)
+    pub logs: Vec<LogEntry>, // Tuple: (log level, message)
     pub current_agent: u64,
 
     // New scroll positions
@@ -37,12 +43,18 @@ pub struct App {
     // History
     pub input_history: Vec<String>,
     pub history_index: Option<usize>, // None = not navigating history
+
+    // Channel for external log messages
+    pub log_rx: Option<Receiver<LogEntry>>,
+
+    // Which pane keybindings should work on
+    pub focus: FocusPane,
 }
 
 // TODO: add file logging mechanism to struct and add_output and add_log and input data
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(rx: Receiver<LogEntry>) -> Self {
         Self {
             input: String::new(),
             output: vec![],
@@ -52,6 +64,8 @@ impl App {
             output_scroll: 0,
             input_history: vec![],
             history_index: None,
+            log_rx: Some(rx),
+            focus: FocusPane::Input,    
         }
     }
 
@@ -64,13 +78,41 @@ impl App {
         self.logs.push((level, message));
     }
 
-    pub fn change_agent(&mut self, agent: u64) {
-        self.current_agent = agent;
+    pub fn poll_logs(&mut self) {
+        if let Some(rx) = &mut self.log_rx {
+            while let Ok((level, msg)) = rx.try_recv() {
+                self.logs.push((level, msg));
+            }
+        }
+    }
+
+    pub fn auto_scroll(&mut self, terminal: &Terminal<CrosstermBackend<std::io::Stdout>>) {
+        if let Ok(size) = terminal.size() {
+            // Logs pane auto-scroll (unless focused)
+            if !matches!(self.focus, FocusPane::Logs) {
+                let log_height = size.height.saturating_sub(2); // adjust if header/footer exist
+                let log_len = self.logs.len() as u16;
+                self.log_scroll = if log_len > log_height {
+                    log_len - log_height
+                } else {
+                    0
+                };
+            }
+    
+            // Output pane auto-scroll (unless focused)
+            if !matches!(self.focus, FocusPane::Output) {
+                let output_height = size.height.saturating_sub(5); // again, adjust padding if needed
+                let output_len = self.output.len() as u16;
+                self.output_scroll = if output_len > output_height {
+                    output_len - output_height
+                } else {
+                    0
+                };
+            }
+        }
     }
 
     pub async fn c2_cli(&mut self, c2: Arc<Mutex<C2>>, host: &str, port: u32, protocol: &str) {
-        // TODO: Need to print header/welcome art
-
         enable_raw_mode().unwrap();
         let mut stdout = stdout();
         execute!(stdout, EnterAlternateScreen).unwrap();
@@ -79,13 +121,23 @@ impl App {
 
         self.input.clear(); // start with empty input each time
 
+        // Print header ascii art
         let header = build_colored_header_output(host, port, protocol);
         self.output.extend(header);
 
 
         loop {
+            //self.auto_scroll(&terminal);
+
             // Draw the TUI
-            terminal.draw(|f| render_ui(f, self)).unwrap();
+            if let Err(e) = terminal.draw(|f| ui::render_ui(f, self)) {
+                eprintln!("UI draw error: {}", e);
+                break;
+            }
+
+            // Poll for logs
+            self.poll_logs();
+            
 
             if event::poll(std::time::Duration::from_millis(100)).unwrap() {
                 if let Event::Key(key) = event::read().unwrap() {
@@ -132,35 +184,13 @@ impl App {
                             self.history_index = None;
                             self.input.clear();
                         }
-                        KeyCode::Up => {
-                            if self.input_history.is_empty() {
-                                continue;
-                            }
-                        
-                            let max = self.input_history.len() - 1;
-                            self.history_index = Some(match self.history_index {
-                                Some(0) | None => max,
-                                Some(i) => i.saturating_sub(1),
-                            });
-                        
-                            if let Some(i) = self.history_index {
-                                self.input = self.input_history[i].clone();
-                            }
-                        },
-                        KeyCode::Down => {
-                            if self.input_history.is_empty() {
-                                continue;
-                            }
-                        
-                            self.history_index = match self.history_index {
-                                None => None,
-                                Some(i) if i >= self.input_history.len() - 1 => None,
-                                Some(i) => Some(i + 1),
-                            };
-                        
-                            self.input = match self.history_index {
-                                Some(i) => self.input_history[i].clone(),
-                                None => String::new(),
+                        KeyCode::Up => { keys::up(self); }
+                        KeyCode::Down => { keys::down(self); }
+                        KeyCode::Tab => {
+                            self.focus = match self.focus {
+                                FocusPane::Input => FocusPane::Output,
+                                FocusPane::Output => FocusPane::Logs,
+                                FocusPane::Logs => FocusPane::Input,
                             };
                         }
                         KeyCode::Esc => break,

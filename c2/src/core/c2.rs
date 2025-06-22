@@ -99,7 +99,7 @@ impl C2 {
         let mut agents = self.agents.lock().await;
         agents.insert(agent_id, agent);
         let msg = format!("New agent {} created from {}", agent_id, ip);
-        Logging::SUCCESS.print_message(&msg);
+        //Logging::SUCCESS.print_message(&msg);
         Logging::SUCCESS.log(&self.log, &msg);
 
         agent_id

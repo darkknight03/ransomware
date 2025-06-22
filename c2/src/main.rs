@@ -6,10 +6,11 @@ mod tasking;
 use std::sync::Arc;
 use server::listeners::listener_trait::Listener;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use clap::Parser;
 use tokio::task::LocalSet;
 
-use crate::utils::logging::Logging;
+use crate::utils::logging::{Logging, LogEntry};
 use crate::core::c2::C2; 
 use crate::server::listeners::tcp::TCPCommListener;
 use crate::server::listeners::http;
@@ -125,47 +126,53 @@ async fn tcp_server(args: Args) {
 }
 
 async fn http_server(args: Args) {
+    let (log_tx, log_rx) = mpsc::channel::<LogEntry>(100);
+    let app = Arc::new(Mutex::new(App::new(log_rx)));
+    let log_tx_sweep = log_tx.clone();
+
+
     let c2 = Arc::new(
         Mutex::new(
             C2::create(args.log_file, None).unwrap()));
 
     let address = format!("{}:{}", args.host, args.port);
     
+    //let app_http = Arc::clone(&app);
     let c2_http = Arc::clone(&c2);
     std::thread::spawn(move || {
         // Start a new Actix system
         actix_web::rt::System::new()
             .block_on(async move {
                 if let Err(e) = http::run_server(
-                    &address, c2_http, false, None, None, false).await {
+                    &address, c2_http, log_tx.clone(), false, None, None, false).await {
                     Logging::ERROR.print_message(&format!("HTTP server error: {}", e));
                 }
             });
     });
 
-
+    //let app_sweep = Arc::clone(&app);
     let c2_sweep = Arc::clone(&c2);
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
-            Logging::DEBUG.print_message("Sweeping for dead agents");
+            //let mut app = app_sweep.lock().await;
+            //app.add_log(Logging::DEBUG, "Sweeping for dead agents".to_string());
+            log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
 
-    //let mut cli = C2Cli { current_agent: 0 };
-    let mut app = App::new();
-
-    app.c2_cli(c2, &args.host, args.port, &args.protocol).await;
-
-    //cli.run(c2, &args.host, args.port, &args.protocol).await;
-    //cli.start_c2_ui(c2, &args.host, args.port, &args.protocol).await;
-
+    let app_cli = Arc::clone(&app);
+    app_cli.lock().await.c2_cli(c2, &args.host, args.port, &args.protocol).await;
 
 }
 
 async fn https_server(args: Args) {
+    let (log_tx, log_rx) = mpsc::channel::<LogEntry>(100);
+    let app = Arc::new(Mutex::new(App::new(log_rx)));
+    let log_tx_sweep = log_tx.clone();
+
     let c2 = Arc::new(
         Mutex::new(
             C2::create(args.log_file, None).unwrap()));
@@ -182,7 +189,7 @@ async fn https_server(args: Args) {
         actix_web::rt::System::new()
             .block_on(async move {
                 if let Err(e) = http::run_server(
-                    &address_clone, c2_https, true, cert_path, key_path, args.generate_certs).await {
+                    &address_clone, c2_https, log_tx.clone(), true, cert_path, key_path, args.generate_certs).await {
                     Logging::ERROR.print_message(&format!("HTTPS server error: {}", e));
                 }
             });
@@ -193,14 +200,14 @@ async fn https_server(args: Args) {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
-            Logging::DEBUG.print_message("Sweeping for dead agents");
+            // Logging::DEBUG.print_message("Sweeping for dead agents");
+            log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
 
-    let mut cli = C2Cli { current_agent: 0 };
-
-    cli.run(c2, &args.host, args.port, &args.protocol).await;
+    let app_cli = Arc::clone(&app);
+    app_cli.lock().await.c2_cli(c2, &args.host, args.port, &args.protocol).await;
 }
 
 async fn dns_server() {

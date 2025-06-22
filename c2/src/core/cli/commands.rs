@@ -24,7 +24,6 @@ pub async fn handle_list_command(app: &mut App, c2: &Arc<Mutex<C2>>) {
 
 pub async fn handle_help_command(app: &mut App) {
     app.add_output("Available: list, exit, show, remove, use, home, send, result");
-    //Logging::RESULT.print_message("Available: list, exit, show, remove, use, home, send, result");
 }
 
 pub async fn handle_show_command(c2: &Arc<Mutex<C2>>, mut parts: impl Iterator<Item = String>) {

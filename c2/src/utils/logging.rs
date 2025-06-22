@@ -16,6 +16,8 @@ pub enum Logging {
     RESULT
 }
 
+pub type LogEntry = (Logging, String);
+
 impl Logging {
     pub fn log(&self, log_file: impl AsRef<Path>, msg: &str) {
         let path = log_file.as_ref();
