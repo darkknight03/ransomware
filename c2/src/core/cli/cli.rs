@@ -15,10 +15,10 @@ pub struct C2Cli {
 }
 
 impl C2Cli {
-    pub async fn run(&mut self, c2: Arc<Mutex<C2>>, host: &str, port: u32, protocol: &str) {
+    pub async fn _run(&mut self, c2: Arc<Mutex<C2>>, host: &str, port: u32, protocol: &str) {
 
         //println!("=== Welcome to the C2 Command Interface ===\n\n");
-        print_header(host, port, protocol).await;
+        _print_header(host, port, protocol).await;
 
         loop {
             if self.current_agent != 0 {
@@ -65,7 +65,7 @@ impl C2Cli {
     
 }
 
-pub async fn print_header(host: &str, port: u32, protocol: &str) {
+pub async fn _print_header(host: &str, port: u32, protocol: &str) {
     let mut stdout = stdout();
 
     let reaper_art = r#"

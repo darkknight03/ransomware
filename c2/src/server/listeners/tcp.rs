@@ -4,10 +4,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use socket2::{Socket, Domain, Type, Protocol};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 
 
 use crate::server::listeners::listener_trait::Listener;
-use crate::utils::logging::Logging;
+use crate::utils::logging::{Logging, LogEntry};
 use crate::core::c2::C2; 
 use crate::server::communication::tcp_session;
 
@@ -20,23 +21,26 @@ pub struct TCPCommListener {
 
 #[async_trait::async_trait]
 impl Listener for TCPCommListener {
-    async fn start(&self, c2: Arc<Mutex<C2>>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn start(&self, c2: Arc<Mutex<C2>>, log_tx: Sender<LogEntry>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         // let listener = TcpListener::bind(&self.bind_addr).await?;
         let listener = create_listener(&self.bind_addr).await?;
 
         let bind_msg = format!("[+] TCP Listener started on {}", self.bind_addr);
-        Logging::NETWORK.print_message(&bind_msg);
+        log_tx.send((Logging::NETWORK, bind_msg)).await.ok(); 
+        //Logging::NETWORK.print_message(&bind_msg);
 
         loop {
             let (socket, addr) = listener.accept().await?;
             let connect_msg = format!("[*] Connection received from {}", addr);
-            Logging::NETWORK.print_message(&connect_msg);
+            log_tx.send((Logging::NETWORK, connect_msg)).await.ok(); 
+            //Logging::NETWORK.print_message(&connect_msg);
 
             let c2_clone = Arc::clone(&c2);
+            let log_tx_clone = log_tx.clone();
             // Spawn a new task to handle the connection
             tokio::spawn(async move {
-                tcp_session::handle_session(socket, addr, c2_clone).await;
+                tcp_session::handle_session(socket, addr, c2_clone, log_tx_clone).await;
             });
         }
         

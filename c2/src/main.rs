@@ -14,7 +14,6 @@ use crate::utils::logging::{Logging, LogEntry, init_global_log_file};
 use crate::core::c2::C2; 
 use crate::server::listeners::tcp::TCPCommListener;
 use crate::server::listeners::http;
-use crate::core::cli::cli::C2Cli;
 use crate::core::cli::app::App;
 
 /// Command and Control Server Configuration
@@ -114,7 +113,7 @@ async fn tcp_server(args: Args) {
 
     let c2_tcp = Arc::clone(&c2);
     tokio::spawn(async move {
-        if let Err(e) = listener.start(c2_tcp).await {
+        if let Err(e) = listener.start(c2_tcp, log_tx.clone()).await {
             Logging::ERROR.log_global(&format!("Listener error: {}", e));
         }
     });
@@ -125,14 +124,17 @@ async fn tcp_server(args: Args) {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
             Logging::INFO.log_global("Sweeping for dead agents");
-            //log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
+            log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
 
-    let mut cli = C2Cli { current_agent: 0 };
+    let app_cli = Arc::clone(&app);
+    app_cli.lock().await.c2_cli(c2, &args.host, args.port, &args.protocol).await;
 
-    cli.run(c2, &args.host, args.port, &args.protocol).await;
+
+    //let mut cli = C2Cli { current_agent: 0 };
+    //cli.run(c2, &args.host, args.port, &args.protocol).await;
 }
 
 async fn http_server(args: Args) {
