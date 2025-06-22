@@ -1,10 +1,9 @@
-use std::{fs::OpenOptions, io::Write, path::{Path, PathBuf}};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::collections::HashMap;
-use ratatui::text::{Line, Span};
+use ratatui::text::Line;
 use ratatui::style::{Style, Color};
 
 
@@ -18,7 +17,6 @@ use super::agent::AgentResult;
 #[derive(Debug)]
 pub struct C2 {
     agents: Arc<Mutex<HashMap<u64, Agent>>>,
-    log: PathBuf,
     next_id: u64,
     task_manager: TaskManager
 }
@@ -30,53 +28,12 @@ pub struct SaveData {
 }
 
 impl C2 {
-    /// Creates a C2 instance with log file path and option to load saved C2 state
-    pub fn create(log_file: impl AsRef<Path>, load_file: Option<&Path>) -> Result<Self, std::io::Error> {
-        let log_path = log_file.as_ref();
-        let mut file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .open(log_path)?;
-
-        match load_file {
-            Some(path) => {
-                // Check if p is valid path
-                if path.exists() {
-                    // Deserialize
-                    let json = std::fs::read_to_string(path)?;
-
-                    let parsed = serde_json::from_str::<SaveData>(&json)?;
-
-                    file.write_all(b"C2 Loaded from Save State\n")?;
-
-                    Ok(C2 {
-                        agents: Arc::new(Mutex::new(parsed.agents)),
-                        log: log_path.to_path_buf(),
-                        next_id: parsed.next_id,
-                        task_manager: TaskManager::new()
-                    })
-                } else {
-                    file.write_all(b"C2 Log File Initialization - Save file not found\n")?;
-                    Ok(C2 {
-                        agents: Arc::new(Mutex::new(HashMap::new())),
-                        log: log_path.to_path_buf(),
-                        next_id: 1,
-                        task_manager: TaskManager::new()
-                    })
-                }
-            },
-            _ => {
-                file.write_all(b"C2 Log File Initialization\n")?;
-                Ok(C2 {
-                    agents: Arc::new(Mutex::new(HashMap::new())),
-                    log: log_path.to_path_buf(),
-                    next_id: 1,
-                    task_manager: TaskManager::new()
-                    })
-
-                }
+    pub fn new() -> Self {
+        C2 {
+            agents: Arc::new(Mutex::new(HashMap::new())),
+            next_id: 1,
+            task_manager: TaskManager::new()
         }
-        
     }
 
     /// Creates an agent after connection received
@@ -98,9 +55,9 @@ impl C2 {
 
         let mut agents = self.agents.lock().await;
         agents.insert(agent_id, agent);
-        let msg = format!("New agent {} created from {}", agent_id, ip);
+        //let msg = format!("New agent {} created from {}", agent_id, ip);
         //Logging::SUCCESS.print_message(&msg);
-        Logging::SUCCESS.log(&self.log, &msg);
+        //Logging::SUCCESS.log(&self.log, &msg);
 
         agent_id
     }
@@ -113,7 +70,7 @@ impl C2 {
         }
     }
 
-    pub async fn list_agents_pretty(&self) {
+    pub async fn _list_agents_pretty(&self) {
         let agents = self.agents.lock().await;
 
         Logging::RESULT.print_message(&format!(
@@ -309,7 +266,7 @@ impl C2 {
     }
 
     /// Display results to terminal for selected agent with option to show all or just unread
-    pub async fn display_results(&self, id: u64, show_all: bool) {
+    pub async fn _display_results(&self, id: u64, show_all: bool) {
         let mut agents = self.agents.lock().await;
     
         if let Some(agent) = agents.get_mut(&id) {
@@ -419,19 +376,5 @@ impl C2 {
         Ok(())
     }
     
-    /// Loads Agent state from JSON file
-    pub fn _load(file_path: impl AsRef<Path>) -> Result<Self, std::io::Error> {
-        let path = file_path.as_ref();  
-        let json = std::fs::read_to_string(path)?;
-
-        let parsed = serde_json::from_str::<SaveData>(&json)?;
-
-        Ok (C2 {
-            agents: Arc::new(Mutex::new(parsed.agents)),
-            log: PathBuf::from("c2_test_log_file.txt"),
-            next_id: parsed.next_id,
-            task_manager: TaskManager::new()
-        })
-    }
 }
 

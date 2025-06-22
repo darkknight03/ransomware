@@ -3,7 +3,6 @@ use tokio::sync::Mutex;
 
 
 use crate::core::agent::AgentResult;
-use crate::core::cli::cli::C2Cli;
 use crate::core::c2::C2;
 use crate::tasking::agent_command::AgentCommand;
 use crate::tasking::tasking::Task;
@@ -19,6 +18,7 @@ pub async fn handle_list_command(app: &mut App, c2: &Arc<Mutex<C2>>) {
     for line in lines {
         app.add_output(line);
     }
+
 
 }
 
@@ -92,7 +92,7 @@ pub async fn handle_send_command(app: &mut App, c2: &Arc<Mutex<C2>>, mut parts: 
                 return;
             }
             let task = args.join(" ");
-            dbg!(&task);
+            //dbg!(&task);
             let c2 = c2.lock().await;
             c2.create_task(app.current_agent, 
                 Task {

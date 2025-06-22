@@ -1,10 +1,9 @@
-use std::io::{self, Write, stdout};
+use std::io::stdout;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::Receiver;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyModifiers},
-    ExecutableCommand,
+    event::{self, Event, KeyCode},
     execute,
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -18,6 +17,19 @@ use crate::utils::logging::{Logging, LogEntry};
 use crate::core::cli::{ui, keys};
 use crate::core::c2::C2;
 use crate::core::cli::commands;
+
+struct TerminalGuard {
+    terminal: Terminal<CrosstermBackend<std::io::Stdout>>,
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        // Called even if panic occurs
+        let _ = disable_raw_mode();
+        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+        let _ = self.terminal.show_cursor();
+    }
+}
 
 #[derive(Debug)]
 pub enum FocusPane {
@@ -51,7 +63,6 @@ pub struct App {
     pub focus: FocusPane,
 }
 
-// TODO: add file logging mechanism to struct and add_output and add_log and input data
 
 impl App {
     pub fn new(rx: Receiver<LogEntry>) -> Self {
@@ -70,7 +81,6 @@ impl App {
     }
 
     pub fn add_output(&mut self, line: impl Into<Line<'static>>) {
-        //self.output.push(line);
         self.output.push(line.into());
     }
 
@@ -86,7 +96,7 @@ impl App {
         }
     }
 
-    pub fn auto_scroll(&mut self, terminal: &Terminal<CrosstermBackend<std::io::Stdout>>) {
+    pub fn _auto_scroll(&mut self, terminal: &Terminal<CrosstermBackend<std::io::Stdout>>) {
         if let Ok(size) = terminal.size() {
             // Logs pane auto-scroll (unless focused)
             if !matches!(self.focus, FocusPane::Logs) {
@@ -117,7 +127,10 @@ impl App {
         let mut stdout = stdout();
         execute!(stdout, EnterAlternateScreen).unwrap();
         let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let terminal = Terminal::new(backend).unwrap();
+
+        // This guard ensures proper cleanup even if panic occurs in the loop
+        let mut terminal = TerminalGuard { terminal };
 
         self.input.clear(); // start with empty input each time
 
@@ -125,13 +138,14 @@ impl App {
         let header = build_colored_header_output(host, port, protocol);
         self.output.extend(header);
 
-
+        
         loop {
             //self.auto_scroll(&terminal);
 
             // Draw the TUI
-            if let Err(e) = terminal.draw(|f| ui::render_ui(f, self)) {
-                eprintln!("UI draw error: {}", e);
+            if let Err(e) = terminal.terminal.draw(|f| ui::render_ui(f, self)) {
+                Logging::ERROR.log_global(&format!("UI draw error: {}", e));
+                //eprintln!("UI draw error: {}", e);
                 break;
             }
 
@@ -146,6 +160,7 @@ impl App {
                         KeyCode::Backspace => { self.input.pop(); }
                         KeyCode::Enter => {
                             let trimmed = self.input.trim().to_string();
+                            Logging::DEBUG.log_global(&format!("Command entered: {}", &trimmed));
 
                             if !trimmed.is_empty() {
                                 self.add_output(format!("c2[{}]> {}", self.current_agent, trimmed));
@@ -155,6 +170,7 @@ impl App {
                             let parsed = match shell_words::split(&trimmed) {
                                 Ok(p) => p,
                                 Err(e) => {
+                                    Logging::ERROR.log_global(&format!("Error parsing input: {}", e));
                                     self.add_log(Logging::ERROR, format!("Error parsing input: {}", e));
                                     self.input.clear();
                                     continue;
@@ -199,10 +215,6 @@ impl App {
                 }
             }
         }
-
-        disable_raw_mode().unwrap();
-        execute!(terminal.backend_mut(), LeaveAlternateScreen).unwrap();
-        terminal.show_cursor().unwrap();
     }
 }
 

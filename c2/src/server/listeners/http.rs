@@ -118,6 +118,8 @@ pub fn configure_tls(certificate: Option<String>, private_key: Option<String>, g
         .with_single_cert(certs, key)
         .map_err(|e| format!("Failed to create ServerConfig: {}", e))?;
 
+    Logging::INFO.log_global("TLS configuration successfully loaded");
+
     Ok(tls_config)
 
 }
@@ -142,22 +144,30 @@ pub async fn run_server(
     if tls {
         log_tx.send((Logging::NETWORK, format!("[*] Starting HTTPS server on {}", addr))).await.ok(); // Use `.ok()` to avoid breaking on send failure
 
-        HttpServer::new({
-            move || {
-                App::new()
-                    .app_data(web::Data::new(log_tx.clone()))
-                    .app_data(web::Data::new(c2.clone()))
-                    .route("/", web::get().to(http_session::health_check))
-                    .route("/beacon", web::post().to(http_session::handle_beacon))
-                    .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
-                    .route("/disconnect", web::post().to(http_session::handle_disconnect))
-                    .route("/reconnect", web::post().to(http_session::handle_reconnect))
-                    .default_service(web::to(http_session::handle_catch_all))
-                }})
-                .bind_rustls_0_23(addr, configure_tls(certificate, private_key, generate_certs)?)?// port 8443 or 443 default
-                .workers(4)
-                .run()
-                .await? 
+        match configure_tls(certificate, private_key, generate_certs) {
+            Ok(tls_config) => {
+                HttpServer::new({
+                    move || {
+                        App::new()
+                            .app_data(web::Data::new(log_tx.clone()))
+                            .app_data(web::Data::new(c2.clone()))
+                            .route("/", web::get().to(http_session::health_check))
+                            .route("/beacon", web::post().to(http_session::handle_beacon))
+                            .route("/heartbeat", web::post().to(http_session::handle_heartbeat))
+                            .route("/disconnect", web::post().to(http_session::handle_disconnect))
+                            .route("/reconnect", web::post().to(http_session::handle_reconnect))
+                            .default_service(web::to(http_session::handle_catch_all))
+                    }})
+                    .bind_rustls_0_23(addr, tls_config)? // port 8443 or 443 default
+                    .workers(4)
+                    .run()
+                    .await?
+            }
+            Err(e) => {
+                Logging::ERROR.log_global(&format!("Failed to configure TLS: {}", e));
+                return Err(e);
+            }
+        }
 
     } else {
         // println!("[*] Starting HTTP server on {}", addr);

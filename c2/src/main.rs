@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use clap::Parser;
 use tokio::task::LocalSet;
 
-use crate::utils::logging::{Logging, LogEntry};
+use crate::utils::logging::{Logging, LogEntry, init_global_log_file};
 use crate::core::c2::C2; 
 use crate::server::listeners::tcp::TCPCommListener;
 use crate::server::listeners::http;
@@ -62,7 +62,13 @@ struct Args {
 async fn main() {
     let args = handle_arguments().await;
 
-    Logging::INFO.print_message("Starting up C2 server...");
+    init_global_log_file(&args.log_file);
+    
+    Logging::INFO.log_global(&format!(
+        "Starting up C2 server with the following configuration -> Host: {}, Port: {}, Protocol: {}, Sweep interval: {} seconds, Timeout: {} seconds",
+        args.host, args.port, args.protocol, args.sweep, args.timeout
+    ));
+
 
     match args.protocol.as_str() {
         "tcp" => {tcp_server(args).await}
@@ -79,7 +85,7 @@ async fn main() {
         "dns" => {dns_server().await}
         "multi" => {multi_server().await}
         _ => {
-            Logging::ERROR.print_message("Unsupported protocol specified.");
+            Logging::ERROR.log_global("Unsupported protocol specified.");
             return;
         }
     }
@@ -91,22 +97,25 @@ async fn handle_arguments() -> Args{
 }
 
 async fn tcp_server(args: Args) {
+    let address = format!("{}:{}", args.host, args.port);
+    Logging::INFO.log_global(&format!("TCP Server initializing on {}", &address));
+
+    let (log_tx, log_rx) = mpsc::channel::<LogEntry>(100);
+    let app = Arc::new(Mutex::new(App::new(log_rx)));
+    let log_tx_sweep = log_tx.clone();
 
     let c2 = Arc::new(
         Mutex::new(
-            C2::create(args.log_file, None).unwrap()));
-
-    let address = format!("{}:{}", args.host, args.port);
-
+            C2::new()));
 
     let listener = TCPCommListener {
             bind_addr: address.parse().unwrap()
         };
 
-    let c2_clone = Arc::clone(&c2);
+    let c2_tcp = Arc::clone(&c2);
     tokio::spawn(async move {
-        if let Err(e) = listener.start(c2_clone).await {
-            Logging::ERROR.print_message(&format!("Listener error: {}", e));
+        if let Err(e) = listener.start(c2_tcp).await {
+            Logging::ERROR.log_global(&format!("Listener error: {}", e));
         }
     });
 
@@ -115,7 +124,8 @@ async fn tcp_server(args: Args) {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
-            Logging::DEBUG.print_message("Sweeping for dead agents");
+            Logging::INFO.log_global("Sweeping for dead agents");
+            //log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
@@ -126,6 +136,9 @@ async fn tcp_server(args: Args) {
 }
 
 async fn http_server(args: Args) {
+    let address = format!("{}:{}", args.host, args.port);
+    Logging::INFO.log_global(&format!("HTTP Server initializing on {}", &address));
+
     let (log_tx, log_rx) = mpsc::channel::<LogEntry>(100);
     let app = Arc::new(Mutex::new(App::new(log_rx)));
     let log_tx_sweep = log_tx.clone();
@@ -133,11 +146,10 @@ async fn http_server(args: Args) {
 
     let c2 = Arc::new(
         Mutex::new(
-            C2::create(args.log_file, None).unwrap()));
+            C2::new()));
 
-    let address = format!("{}:{}", args.host, args.port);
     
-    //let app_http = Arc::clone(&app);
+    
     let c2_http = Arc::clone(&c2);
     std::thread::spawn(move || {
         // Start a new Actix system
@@ -145,20 +157,19 @@ async fn http_server(args: Args) {
             .block_on(async move {
                 if let Err(e) = http::run_server(
                     &address, c2_http, log_tx.clone(), false, None, None, false).await {
-                    Logging::ERROR.print_message(&format!("HTTP server error: {}", e));
+                    //Logging::ERROR.print_message(&format!("HTTP server error: {}", e));
+                    Logging::ERROR.log_global(&format!("HTTP server error: {}", e));
                 }
             });
     });
 
-    //let app_sweep = Arc::clone(&app);
     let c2_sweep = Arc::clone(&c2);
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(args.sweep)).await; // sweep every X min
             let mut c2 = c2_sweep.lock().await;
-            //let mut app = app_sweep.lock().await;
-            //app.add_log(Logging::DEBUG, "Sweeping for dead agents".to_string());
             log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
+            Logging::INFO.log_global("Sweeping for dead agents");
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });
@@ -169,15 +180,17 @@ async fn http_server(args: Args) {
 }
 
 async fn https_server(args: Args) {
+    let address = format!("{}:{}", args.host, args.port);
+    Logging::INFO.log_global(&format!("HTTP Server initializing on {}", &address));
+
     let (log_tx, log_rx) = mpsc::channel::<LogEntry>(100);
     let app = Arc::new(Mutex::new(App::new(log_rx)));
     let log_tx_sweep = log_tx.clone();
 
     let c2 = Arc::new(
         Mutex::new(
-            C2::create(args.log_file, None).unwrap()));
+            C2::new()));
 
-    let address = format!("{}:{}", args.host, args.port);
 
     let cert_path = if args.cert.is_none() { None } else { args.cert.clone() };
     let key_path = if args.key.is_none() { None } else { args.key.clone() };
@@ -190,7 +203,7 @@ async fn https_server(args: Args) {
             .block_on(async move {
                 if let Err(e) = http::run_server(
                     &address_clone, c2_https, log_tx.clone(), true, cert_path, key_path, args.generate_certs).await {
-                    Logging::ERROR.print_message(&format!("HTTPS server error: {}", e));
+                    Logging::ERROR.log_global(&format!("HTTP server error: {}", e));
                 }
             });
     });
@@ -202,6 +215,7 @@ async fn https_server(args: Args) {
             let mut c2 = c2_sweep.lock().await;
             // Logging::DEBUG.print_message("Sweeping for dead agents");
             log_tx_sweep.send((Logging::DEBUG, "Sweeping for dead agents".into())).await.ok();
+            Logging::INFO.log_global("Sweeping for dead agents");
             c2.sweep_dead_agents(120).await;  // FIX: timeout duration
         }
     });

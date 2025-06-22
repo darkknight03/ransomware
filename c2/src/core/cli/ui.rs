@@ -129,49 +129,6 @@ fn render_logs(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(para, area);
 }
 
-pub fn _render_ui2(f: &mut Frame, app: &App) {
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
-        .split(f.area());
 
-    // Split left pane (main) into output and input areas
-    let main_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),        // output area
-            Constraint::Length(3),    // input box
-        ])
-        .split(chunks[0]);
-
-    // Output area (left top)
-    let output_para = Paragraph::new(app.output.clone())
-        .block(Block::default().title("Command Output").borders(Borders::ALL))
-        .wrap(Wrap { trim: true })
-        .scroll((app.output_scroll, 0));
-    f.render_widget(output_para, main_chunks[0]);
-
-    // Input area (left bottom)
-    let prompt_text = format!("c2[{}]> {}", app.current_agent, app.input);
-    let input_para = Paragraph::new(prompt_text)
-        .block(Block::default().title("Prompt").borders(Borders::ALL))
-        .wrap(Wrap { trim: false });
-    f.render_widget(input_para, main_chunks[1]);
-
-    // Logs pane (right)
-    let mut text_lines = Vec::new();
-    for (level, msg) in &app.logs {
-        text_lines.push(Line::styled(
-            format!("[{:?}] {}", level, msg),
-            Style::default().fg(log_color(level)),
-        ));
-    }
-
-    let log_pane = Paragraph::new(text_lines)
-        .block(Block::default().title("Logs").borders(Borders::ALL))
-        .wrap(Wrap { trim: true })
-        .scroll((app.log_scroll, 0));
-    f.render_widget(log_pane, chunks[1]);
-}
 
 

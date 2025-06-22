@@ -3,11 +3,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use shell_words;
 use crossterm::{
-    event::{self, Event, KeyCode},
     style::{Color, PrintStyledContent, Stylize},
     ExecutableCommand,
-    execute,
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use crate::core::c2::C2;

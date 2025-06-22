@@ -1,7 +1,4 @@
 use crate::core::cli::app::{App, FocusPane};
-use crate::utils::logging::{Logging, LogEntry};
-use crate::core::c2::C2;
-use crate::core::cli::commands;
 
 
 pub fn up(app: &mut App) {
